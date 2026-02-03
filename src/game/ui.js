@@ -733,7 +733,30 @@ export function renderBossChest({ rewards = [], onPick, onContinue }) {
 
   target.innerHTML = `
     <div class="chest-panel">
-      <div class="boss-title">Choisis le bonus a conserver</div>
+      <div class="boss-header-row">
+        <div class="boss-title">Choisis le bonus a conserver</div>
+        <div class="boss-filters">
+          <label class="filter">
+            <span>Type</span>
+            <select id="boss-filter-type">
+              <option value="all">Tous</option>
+              <option value="stat">Stat</option>
+              <option value="talent">Talent</option>
+              <option value="weapon">Arme</option>
+            </select>
+          </label>
+          <label class="filter">
+            <span>Rarite</span>
+            <select id="boss-filter-rarity">
+              <option value="all">Toutes</option>
+              <option value="silver">Argent</option>
+              <option value="gold">Or</option>
+              <option value="purple">Violet</option>
+              <option value="red">Rouge</option>
+            </select>
+          </label>
+        </div>
+      </div>
       <div class="reward-grid cashout-grid">
         ${choices.map(reward => {
           const typeLabel = reward.type === 'weapon' ? 'WEAPON' : reward.type === 'talent' ? 'TALENT' : 'STAT';
@@ -749,7 +772,7 @@ export function renderBossChest({ rewards = [], onPick, onContinue }) {
           const tip = weapon ? weaponStatsText(weapon) : '';
           const tipAttr = tip ? ` data-tip="${tip}"` : '';
           return `
-            <button class="reward-card rarity-${rarity}" data-reward-key="${reward.key}"${tipAttr}>
+            <button class="reward-card rarity-${rarity}" data-reward-key="${reward.key}" data-type="${reward.type}" data-rarity="${rarity}"${tipAttr}>
               <div class="reward-title">${title}</div>
               <div class="reward-desc">${desc}</div>
               <div class="reward-meta">${typeLabel}</div>
@@ -776,6 +799,23 @@ export function renderBossChest({ rewards = [], onPick, onContinue }) {
     }
     if (continueBtn) continueBtn.disabled = false;
   };
+
+  const applyFilters = () => {
+    const typeFilter = document.getElementById('boss-filter-type')?.value || 'all';
+    const rarityFilter = document.getElementById('boss-filter-rarity')?.value || 'all';
+    const cards = Array.from(target.querySelectorAll('[data-reward-key]'));
+    cards.forEach(card => {
+      const type = card.getAttribute('data-type');
+      const rarity = card.getAttribute('data-rarity');
+      const typeOk = typeFilter === 'all' || type === typeFilter;
+      const rarityOk = rarityFilter === 'all' || rarity === rarityFilter;
+      card.style.display = typeOk && rarityOk ? '' : 'none';
+    });
+  };
+
+  document.getElementById('boss-filter-type')?.addEventListener('change', applyFilters);
+  document.getElementById('boss-filter-rarity')?.addEventListener('change', applyFilters);
+  applyFilters();
 
   if (!choices.length) {
     revealReward(null);

@@ -1813,6 +1813,58 @@ input[type="text"] {
   gap: 0.8rem;
 }
 
+.boss-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.8rem;
+}
+
+.boss-filters {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.boss-filters .filter {
+  display: grid;
+  gap: 0.2rem;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+
+.boss-filters select {
+  background: rgba(12, 10, 12, 0.85);
+  color: var(--text);
+  border: 1px solid rgba(214, 176, 107, 0.35);
+  border-radius: 10px;
+  padding: 0.3rem 0.6rem;
+  font-size: 0.8rem;
+}
+
+.cashout-grid {
+  max-height: 360px;
+  overflow-y: auto;
+  padding-right: 0.3rem;
+}
+
+.cashout-grid::-webkit-scrollbar {
+  width: 8px;
+}
+
+.cashout-grid::-webkit-scrollbar-track {
+  background: rgba(10, 8, 10, 0.6);
+  border-radius: 999px;
+}
+
+.cashout-grid::-webkit-scrollbar-thumb {
+  background: rgba(214, 176, 107, 0.6);
+  border-radius: 999px;
+}
+
 .chest-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(80px, 1fr));
