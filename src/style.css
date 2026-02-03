@@ -739,26 +739,38 @@ input[type="text"] {
   --trail-length: 60px;
 }
 
-.fighter[data-weapon="silver"] {
-  --trail-color: rgba(230, 237, 245, 0.65);
+.fighter[data-weapon="common"] {
+  --trail-color: rgba(200, 210, 220, 0.55);
   --trail-length: 74px;
 }
 
-.fighter[data-weapon="gold"] {
-  --trail-color: rgba(255, 210, 120, 0.75);
-  --trail-length: 82px;
+.fighter[data-weapon="uncommon"] {
+  --trail-color: rgba(90, 210, 130, 0.65);
+  --trail-length: 80px;
 }
 
-.fighter[data-weapon="purple"] {
-  --trail-color: rgba(183, 100, 255, 0.85);
+.fighter[data-weapon="rare"] {
+  --trail-color: rgba(90, 160, 255, 0.75);
+  --trail-length: 88px;
+  --trail-height: 26px;
+}
+
+.fighter[data-weapon="epic"] {
+  --trail-color: rgba(170, 110, 255, 0.85);
   --trail-length: 96px;
   --trail-height: 28px;
 }
 
-.fighter[data-weapon="red"] {
-  --trail-color: rgba(255, 95, 95, 0.9);
-  --trail-length: 112px;
+.fighter[data-weapon="legendary"] {
+  --trail-color: rgba(255, 210, 120, 0.85);
+  --trail-length: 106px;
   --trail-height: 30px;
+}
+
+.fighter[data-weapon="ultimate"] {
+  --trail-color: rgba(255, 90, 90, 0.95);
+  --trail-length: 118px;
+  --trail-height: 32px;
 }
 
 .fighter.fx-crit-trail {
@@ -1294,28 +1306,40 @@ input[type="text"] {
   --glow: rgba(120, 130, 160, 0.3);
 }
 
-.sprite-weapon[data-weapon="silver"] {
-  --metal-1: #e6edf5;
-  --metal-2: #aab4c7;
-  --glow: rgba(230, 237, 245, 0.55);
+.sprite-weapon[data-weapon="common"] {
+  --metal-1: #e0e4e8;
+  --metal-2: #9aa3ad;
+  --glow: rgba(200, 210, 220, 0.5);
 }
 
-.sprite-weapon[data-weapon="gold"] {
-  --metal-1: #ffe08a;
-  --metal-2: #d9a547;
-  --glow: rgba(255, 210, 120, 0.65);
+.sprite-weapon[data-weapon="uncommon"] {
+  --metal-1: #bdf5c6;
+  --metal-2: #4aa95f;
+  --glow: rgba(90, 210, 130, 0.6);
 }
 
-.sprite-weapon[data-weapon="purple"] {
-  --metal-1: #d6a0ff;
+.sprite-weapon[data-weapon="rare"] {
+  --metal-1: #b6e0ff;
+  --metal-2: #4d8fe6;
+  --glow: rgba(80, 160, 255, 0.65);
+}
+
+.sprite-weapon[data-weapon="epic"] {
+  --metal-1: #e1b6ff;
   --metal-2: #8a4bff;
-  --glow: rgba(183, 100, 255, 0.8);
+  --glow: rgba(170, 100, 255, 0.8);
 }
 
-.sprite-weapon[data-weapon="red"] {
-  --metal-1: #ff7b7b;
-  --metal-2: #ff3b5c;
-  --glow: rgba(255, 95, 95, 0.85);
+.sprite-weapon[data-weapon="legendary"] {
+  --metal-1: #ffe2a3;
+  --metal-2: #d6a241;
+  --glow: rgba(255, 210, 120, 0.75);
+}
+
+.sprite-weapon[data-weapon="ultimate"] {
+  --metal-1: #ff9c9c;
+  --metal-2: #e54444;
+  --glow: rgba(255, 90, 90, 0.85);
 }
 
 .sprite-weapon[data-weapon-id="fists"] {
@@ -2026,28 +2050,40 @@ input[type="text"] {
   color: rgba(214, 176, 107, 0.75);
 }
 
-.rarity-silver {
-  border-color: #d5dbe2;
-  background: linear-gradient(140deg, rgba(213, 219, 226, 0.16), rgba(12, 10, 12, 0.9));
-  box-shadow: 0 0 18px rgba(213, 219, 226, 0.25);
+.rarity-common {
+  border-color: #a8b0ba;
+  background: linear-gradient(140deg, rgba(168, 176, 186, 0.18), rgba(12, 10, 12, 0.9));
+  box-shadow: 0 0 18px rgba(168, 176, 186, 0.25);
 }
 
-.rarity-gold {
-  border-color: #d9b46a;
-  background: linear-gradient(140deg, rgba(217, 180, 106, 0.2), rgba(12, 10, 12, 0.9));
-  box-shadow: 0 0 18px rgba(217, 180, 106, 0.3);
+.rarity-uncommon {
+  border-color: #4bbf6b;
+  background: linear-gradient(140deg, rgba(75, 191, 107, 0.2), rgba(12, 10, 12, 0.9));
+  box-shadow: 0 0 18px rgba(75, 191, 107, 0.3);
 }
 
-.rarity-purple {
+.rarity-rare {
+  border-color: #4aa3ff;
+  background: linear-gradient(140deg, rgba(74, 163, 255, 0.22), rgba(12, 10, 12, 0.9));
+  box-shadow: 0 0 20px rgba(74, 163, 255, 0.35);
+}
+
+.rarity-epic {
   border-color: #9d6bff;
   background: linear-gradient(140deg, rgba(157, 107, 255, 0.3), rgba(12, 10, 12, 0.9));
   box-shadow: 0 0 24px rgba(157, 107, 255, 0.45);
 }
 
-.rarity-red {
-  border-color: #b63b2a;
-  background: linear-gradient(140deg, rgba(182, 59, 42, 0.28), rgba(12, 10, 12, 0.9));
-  box-shadow: 0 0 22px rgba(182, 59, 42, 0.45);
+.rarity-legendary {
+  border-color: #f2c45b;
+  background: linear-gradient(140deg, rgba(242, 196, 91, 0.24), rgba(12, 10, 12, 0.9));
+  box-shadow: 0 0 22px rgba(242, 196, 91, 0.4);
+}
+
+.rarity-ultimate {
+  border-color: #e04a3a;
+  background: linear-gradient(140deg, rgba(224, 74, 58, 0.3), rgba(12, 10, 12, 0.9));
+  box-shadow: 0 0 22px rgba(224, 74, 58, 0.45);
 }
 
 .badge {

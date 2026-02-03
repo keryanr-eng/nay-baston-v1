@@ -20,6 +20,18 @@ const EVENT_ICON_TEXT = {
   risk: 'RISK'
 };
 
+const LEGACY_RARITY_MAP = {
+  silver: 'common',
+  gold: 'rare',
+  purple: 'epic',
+  red: 'ultimate'
+};
+
+function normalizeRarity(rarity) {
+  if (!rarity) return 'common';
+  return LEGACY_RARITY_MAP[rarity] || rarity;
+}
+
 function getFighterEl(side) {
   return document.getElementById(side === 'A' ? 'fighterA' : 'fighterB');
 }
@@ -749,10 +761,12 @@ export function renderBossChest({ rewards = [], onPick, onContinue }) {
             <span>Rarite</span>
             <select id="boss-filter-rarity">
               <option value="all">Toutes</option>
-              <option value="silver">Argent</option>
-              <option value="gold">Or</option>
-              <option value="purple">Violet</option>
-              <option value="red">Rouge</option>
+              <option value="common">Commun</option>
+              <option value="uncommon">Peu commun</option>
+              <option value="rare">Rare</option>
+              <option value="epic">Epique</option>
+              <option value="legendary">Legendaire</option>
+              <option value="ultimate">Ultime</option>
             </select>
           </label>
         </div>
@@ -768,8 +782,12 @@ export function renderBossChest({ rewards = [], onPick, onContinue }) {
             : reward.type === 'talent'
               ? (getTalentDescription(reward.talentId) || '')
               : 'Bonus permanent.';
-          const rarity = reward.rarity || weapon?.rarity || talent?.rarity || 'silver';
-          const tip = weapon ? weaponStatsText(weapon) : '';
+          const rarity = normalizeRarity(reward.rarity || weapon?.rarity || talent?.rarity || 'common');
+          const tip = reward.type === 'weapon'
+            ? weaponStatsText(weapon)
+            : reward.type === 'talent'
+              ? (getTalentDescription(reward.talentId) || title)
+              : (reward.label || desc);
           const tipAttr = tip ? ` data-tip="${tip}"` : '';
           return `
             <button class="reward-card rarity-${rarity}" data-reward-key="${reward.key}" data-type="${reward.type}" data-rarity="${rarity}"${tipAttr}>
@@ -865,7 +883,7 @@ export function renderEventPanel(eventData, onSelect = null, target = null, play
           const weapon = option.weaponId ? getWeaponById(option.weaponId) : null;
           const tip = weapon ? weaponStatsText(weapon) : '';
           const tipAttr = tip ? ` data-tip="${tip}"` : '';
-          const rarity = option.rarity || 'silver';
+          const rarity = normalizeRarity(option.rarity || 'common');
           const cost = option.cost || 0;
           const canAfford = cost ? gold >= cost : true;
           const disabledAttr = canAfford ? '' : ' disabled';
@@ -956,10 +974,15 @@ export function renderLevelUpChoices(levelEntry, onConfirm) {
       <div class="reward-grid">
         ${levelEntry.options.map(option => {
           const weapon = option.type === 'weapon' ? getWeaponById(option.weaponId) : null;
-          const tip = weapon ? weaponStatsText(weapon) : '';
+          const tip = option.type === 'weapon'
+            ? weaponStatsText(weapon)
+            : option.type === 'talent'
+              ? (getTalentDescription(option.talentId) || option.label)
+              : (option.label || option.desc || '');
           const tipAttr = tip ? ` data-tip="${tip}"` : '';
+          const rarity = normalizeRarity(option.rarity);
           return `
-            <button class="reward-card rarity-${option.rarity}" data-choice="${option.id}"${tipAttr}>
+            <button class="reward-card rarity-${rarity}" data-choice="${option.id}"${tipAttr}>
               <div class="reward-title">${option.label}</div>
               <div class="reward-desc">${option.desc || ''}</div>
               <div class="reward-meta">${option.type.toUpperCase()}</div>

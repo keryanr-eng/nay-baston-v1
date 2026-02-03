@@ -37,42 +37,51 @@ const DEFAULT_SETTINGS = {
 };
 
 const TALENTS = [
-  { id: 'berserk', name: 'Berserk', rarity: 'purple', desc: 'Furie sous 35% PV (+25% ATK).' },
-  { id: 'tank', name: 'Tank', rarity: 'silver', desc: '+20% PV max.' },
-  { id: 'thorns', name: 'Thorns', rarity: 'gold', desc: 'Reflechit 20% des degats.' },
-  { id: 'precision', name: 'Precision', rarity: 'silver', desc: '+8% PREC.' },
-  { id: 'focus', name: 'Focus', rarity: 'silver', desc: '+8% CRIT.' },
-  { id: 'ninja', name: 'Ninja', rarity: 'gold', desc: '+8% DODGE.' },
-  { id: 'fast', name: 'Fast', rarity: 'silver', desc: '+4 SPD.' },
-  { id: 'armor', name: 'Armor', rarity: 'silver', desc: '+15% DEF.' },
-  { id: 'lifesteal', name: 'Lifesteal', rarity: 'gold', desc: 'Recupere 20% des degats infliges.' },
-  { id: 'firstblood', name: 'FirstBlood', rarity: 'purple', desc: 'Premier coup +35% degats.' },
-  { id: 'lucky', name: 'Lucky', rarity: 'red', desc: '+5% CRIT et +5% DODGE.' }
+  { id: 'berserk', name: 'Berserk', rarity: 'epic', desc: 'Furie sous 35% PV (+25% ATK).' },
+  { id: 'tank', name: 'Tank', rarity: 'uncommon', desc: '+20% PV max.' },
+  { id: 'thorns', name: 'Thorns', rarity: 'rare', desc: 'Reflechit 20% des degats.' },
+  { id: 'precision', name: 'Precision', rarity: 'common', desc: '+8% PREC.' },
+  { id: 'focus', name: 'Focus', rarity: 'common', desc: '+8% CRIT.' },
+  { id: 'ninja', name: 'Ninja', rarity: 'rare', desc: '+8% DODGE.' },
+  { id: 'fast', name: 'Fast', rarity: 'common', desc: '+4 SPD.' },
+  { id: 'armor', name: 'Armor', rarity: 'uncommon', desc: '+15% DEF.' },
+  { id: 'lifesteal', name: 'Lifesteal', rarity: 'legendary', desc: 'Recupere 20% des degats infliges.' },
+  { id: 'firstblood', name: 'FirstBlood', rarity: 'epic', desc: 'Premier coup +35% degats.' },
+  { id: 'lucky', name: 'Lucky', rarity: 'ultimate', desc: '+5% CRIT et +5% DODGE.' }
 ];
 
 const WEAPONS = [
-  { id: 'dagger', name: 'Dagger', rarity: 'silver', desc: 'Vif et precis.', stats: { atk: 1, spd: 2, crit: 0.03 } },
-  { id: 'sword', name: 'Sword', rarity: 'gold', desc: 'Fiable et tranchante.', stats: { atk: 3 } },
-  { id: 'axe', name: 'Axe', rarity: 'red', desc: 'Lourde, mais devastatrice.', stats: { atk: 4, spd: -1 } },
-  { id: 'shield', name: 'Shield', rarity: 'gold', desc: 'Protection renforcee.', stats: { def: 3, hp: 10, spd: -1 } },
-  { id: 'spear', name: 'Spear', rarity: 'purple', desc: 'Allonge avantageuse.', stats: { atk: 2, spd: 1, crit: 0.02 } },
-  { id: 'gloves', name: 'Gloves', rarity: 'silver', desc: 'Rapide et souple.', stats: { spd: 2, dodge: 0.03 } }
+  { id: 'dagger', name: 'Dagger', rarity: 'common', desc: 'Vif et precis.', stats: { atk: 1, spd: 2, crit: 0.03 } },
+  { id: 'sword', name: 'Sword', rarity: 'rare', desc: 'Fiable et tranchante.', stats: { atk: 3 } },
+  { id: 'axe', name: 'Axe', rarity: 'ultimate', desc: 'Lourde, mais devastatrice.', stats: { atk: 4, spd: -1 } },
+  { id: 'shield', name: 'Shield', rarity: 'epic', desc: 'Protection renforcee.', stats: { def: 3, hp: 10, spd: -1 } },
+  { id: 'spear', name: 'Spear', rarity: 'legendary', desc: 'Allonge avantageuse.', stats: { atk: 2, spd: 1, crit: 0.02 } },
+  { id: 'gloves', name: 'Gloves', rarity: 'uncommon', desc: 'Rapide et souple.', stats: { spd: 2, dodge: 0.03 } }
 ];
 
 const DEFAULT_WEAPON = {
   id: 'fists',
   name: 'Poings',
-  rarity: 'silver',
+  rarity: 'common',
   desc: 'Arme de base.',
   stats: { atk: 0 }
 };
 
 const DODGE_CAP = 0.6;
 const RARITY_MULTIPLIERS = {
-  silver: 1,
-  gold: 1.12,
-  purple: 1.25,
-  red: 1.4
+  common: 1,
+  uncommon: 1.08,
+  rare: 1.18,
+  epic: 1.32,
+  legendary: 1.5,
+  ultimate: 1.75
+};
+
+const LEGACY_RARITY_MAP = {
+  silver: 'common',
+  gold: 'rare',
+  purple: 'epic',
+  red: 'ultimate'
 };
 
 const STORAGE_VERSION = 2;
@@ -87,8 +96,14 @@ function clamp(value, min, max) {
   return Math.max(min, Math.min(max, value));
 }
 
+function normalizeRarity(rarity) {
+  if (!rarity) return 'common';
+  return LEGACY_RARITY_MAP[rarity] || rarity;
+}
+
 function getRarityMultiplier(rarity) {
-  return RARITY_MULTIPLIERS[rarity] ?? 1;
+  const normalized = normalizeRarity(rarity);
+  return RARITY_MULTIPLIERS[normalized] ?? 1;
 }
 
 function scalePercent(value, multiplier) {
@@ -548,12 +563,14 @@ function pickWeighted(list) {
 
 function getRarityWeights(level) {
   const tier = Math.floor((level - 1) / 5);
-  const shift = Math.min(0.2, tier * 0.04);
+  const shift = Math.min(0.18, tier * 0.03);
   const weights = {
-    silver: 0.55 - shift,
-    gold: 0.28 + shift * 0.5,
-    purple: 0.13 + shift * 0.3,
-    red: 0.04 + shift * 0.2
+    common: 0.42 - shift * 1.1,
+    uncommon: 0.25 - shift * 0.5,
+    rare: 0.18 + shift * 0.4,
+    epic: 0.1 + shift * 0.5,
+    legendary: 0.04 + shift * 0.4,
+    ultimate: 0.01 + shift * 0.3
   };
   const total = Object.values(weights).reduce((sum, val) => sum + val, 0);
   return Object.keys(weights).map(id => ({ id, weight: weights[id] / total }));
@@ -563,10 +580,12 @@ function buildStatReward(level, excludedStats = []) {
   const rarity = pickWeighted(getRarityWeights(level)).id;
 
   const tiers = {
-    silver: { hp: 6, atk: 1, def: 1, spd: 1, crit: 0.003, dodge: 0.003, precision: 0.003 },
-    gold: { hp: 10, atk: 2, def: 2, spd: 2, crit: 0.005, dodge: 0.005, precision: 0.005 },
-    purple: { hp: 14, atk: 3, def: 3, spd: 3, crit: 0.009, dodge: 0.009, precision: 0.009 },
-    red: { hp: 20, atk: 4, def: 4, spd: 4, crit: 0.016, dodge: 0.016, precision: 0.016 }
+    common: { hp: 5, atk: 1, def: 1, spd: 1, crit: 0.0025, dodge: 0.0025, precision: 0.0025 },
+    uncommon: { hp: 7, atk: 1, def: 1, spd: 1, crit: 0.0035, dodge: 0.0035, precision: 0.0035 },
+    rare: { hp: 10, atk: 2, def: 2, spd: 2, crit: 0.005, dodge: 0.005, precision: 0.005 },
+    epic: { hp: 14, atk: 3, def: 3, spd: 3, crit: 0.008, dodge: 0.008, precision: 0.008 },
+    legendary: { hp: 19, atk: 4, def: 4, spd: 4, crit: 0.012, dodge: 0.012, precision: 0.012 },
+    ultimate: { hp: 25, atk: 5, def: 5, spd: 5, crit: 0.017, dodge: 0.017, precision: 0.017 }
   };
 
   const stats = Object.keys(tiers[rarity]);
@@ -598,9 +617,9 @@ function buildStatReward(level, excludedStats = []) {
 function buildTalentReward(level, owned, excludedIds = new Set()) {
   const available = TALENTS.filter(t => !owned.includes(t.id) && !excludedIds.has(t.id));
   if (!available.length) return null;
-  const rarityPool = getRarityWeights(level).filter(entry => available.some(t => t.rarity === entry.id));
+  const rarityPool = getRarityWeights(level).filter(entry => available.some(t => normalizeRarity(t.rarity) === entry.id));
   const pickRarity = pickWeighted(rarityPool).id;
-  const candidates = available.filter(t => t.rarity === pickRarity);
+  const candidates = available.filter(t => normalizeRarity(t.rarity) === pickRarity);
   const pick = candidates[Math.floor(Math.random() * candidates.length)];
   return {
     id: `talent-${pick.id}-${Math.random().toString(36).slice(2, 6)}`,
@@ -615,9 +634,9 @@ function buildTalentReward(level, owned, excludedIds = new Set()) {
 function buildWeaponReward(level, currentWeapon, excludedIds = new Set(), ownedWeapons = []) {
   const available = WEAPONS.filter(w => w.id !== currentWeapon && !excludedIds.has(w.id) && !ownedWeapons.includes(w.id));
   if (!available.length) return null;
-  const rarityPool = getRarityWeights(level).filter(entry => available.some(w => w.rarity === entry.id));
+  const rarityPool = getRarityWeights(level).filter(entry => available.some(w => normalizeRarity(w.rarity) === entry.id));
   const pickRarity = pickWeighted(rarityPool).id;
-  const candidates = available.filter(w => w.rarity === pickRarity);
+  const candidates = available.filter(w => normalizeRarity(w.rarity) === pickRarity);
   const pick = candidates[Math.floor(Math.random() * candidates.length)];
   return {
     id: `weapon-${pick.id}-${Math.random().toString(36).slice(2, 6)}`,
@@ -765,30 +784,37 @@ function buildRiskDesc(outcomes) {
 }
 
 function getRarityRank(rarity) {
-  if (rarity === 'red') return 4;
-  if (rarity === 'purple') return 3;
-  if (rarity === 'gold') return 2;
+  const normalized = normalizeRarity(rarity);
+  if (normalized === 'ultimate') return 6;
+  if (normalized === 'legendary') return 5;
+  if (normalized === 'epic') return 4;
+  if (normalized === 'rare') return 3;
+  if (normalized === 'uncommon') return 2;
   return 1;
 }
 
 function pickHighestRarity(list) {
-  if (!Array.isArray(list) || !list.length) return 'silver';
-  return list.reduce((best, current) => {
+  if (!Array.isArray(list) || !list.length) return 'common';
+  const pick = list.reduce((best, current) => {
     if (!best) return current;
     return getRarityRank(current) > getRarityRank(best) ? current : best;
-  }, null) || 'silver';
+  }, null);
+  return normalizeRarity(pick) || 'common';
 }
 
 function getShopCost(rarity, level) {
   const base = {
-    silver: 25,
-    gold: 40,
-    purple: 65,
-    red: 95
+    common: 20,
+    uncommon: 32,
+    rare: 48,
+    epic: 70,
+    legendary: 100,
+    ultimate: 135
   };
   const tier = Math.floor((level - 1) / 5);
   const scale = 1 + tier * 0.18;
-  const value = Math.round((base[rarity] || base.silver) * scale);
+  const normalized = normalizeRarity(rarity);
+  const value = Math.round((base[normalized] || base.common) * scale);
   return Math.max(10, value);
 }
 
@@ -817,9 +843,9 @@ function buildShopStatOffer(level, player, count = 2) {
 function pickByRarity(list, level) {
   if (!list.length) return null;
   const weights = getRarityWeights(level);
-  const filtered = weights.filter(entry => list.some(item => item.rarity === entry.id));
+  const filtered = weights.filter(entry => list.some(item => normalizeRarity(item.rarity) === entry.id));
   const pickRarity = pickWeighted(filtered.length ? filtered : weights).id;
-  const candidates = list.filter(item => item.rarity === pickRarity);
+  const candidates = list.filter(item => normalizeRarity(item.rarity) === pickRarity);
   const pool = candidates.length ? candidates : list;
   return pool[Math.floor(Math.random() * pool.length)];
 }
@@ -879,21 +905,21 @@ function buildBloodAltarEvent(level, player) {
       {
         id: 'blood-offer',
         label: 'Offrir du sang',
-        rarity: 'purple',
+        rarity: 'epic',
         statChanges: offerStats,
         desc: buildEventDesc(offerStats)
       },
       {
         id: 'blood-guard',
         label: 'Graver un serment',
-        rarity: 'gold',
+        rarity: 'rare',
         statChanges: guardStats,
         desc: buildEventDesc(guardStats)
       },
       {
         id: 'blood-leave',
         label: 'Partir',
-        rarity: 'silver',
+        rarity: 'common',
         statChanges: [],
         desc: 'Aucun effet.'
       }
@@ -913,7 +939,7 @@ function buildForgeEvent(level, player) {
     weaponOption = {
       id: 'forge-weapon',
       label: 'Marchander une arme',
-      rarity: weapon.rarity || 'gold',
+      rarity: normalizeRarity(weapon.rarity) || 'rare',
       weaponId: weapon.id,
       statChanges,
       desc: buildEventDesc(statChanges, [`Arme: ${weapon.name}`])
@@ -928,7 +954,7 @@ function buildForgeEvent(level, player) {
     weaponOption = {
       id: 'forge-training',
       label: 'Travail du metal',
-      rarity: 'gold',
+      rarity: 'rare',
       statChanges,
       desc: buildEventDesc(statChanges)
     };
@@ -953,14 +979,14 @@ function buildForgeEvent(level, player) {
       {
         id: 'forge-armor',
         label: 'Renforcer l armure',
-        rarity: 'gold',
+        rarity: 'rare',
         statChanges: reinforceStats,
         desc: buildEventDesc(reinforceStats)
       },
       {
         id: 'forge-leave',
         label: 'Refuser',
-        rarity: 'silver',
+        rarity: 'common',
         statChanges: [],
         desc: 'Aucun effet.'
       }
@@ -981,7 +1007,7 @@ function buildScrollEvent(level, player) {
     talentOption = {
       id: 'scroll-talent',
       label: 'Lire le parchemin',
-      rarity: talent.rarity || 'gold',
+      rarity: normalizeRarity(talent.rarity) || 'rare',
       talentId: talent.id,
       statChanges,
       desc: buildEventDesc(statChanges, [`Talent: ${talent.name} (${talentDesc})`])
@@ -996,7 +1022,7 @@ function buildScrollEvent(level, player) {
     talentOption = {
       id: 'scroll-focus',
       label: 'Meditation',
-      rarity: 'gold',
+      rarity: 'rare',
       statChanges,
       desc: buildEventDesc(statChanges)
     };
@@ -1021,14 +1047,14 @@ function buildScrollEvent(level, player) {
       {
         id: 'scroll-insight',
         label: 'Canaliser',
-        rarity: 'purple',
+        rarity: 'epic',
         statChanges: insightStats,
         desc: buildEventDesc(insightStats)
       },
       {
         id: 'scroll-leave',
         label: 'Ignorer',
-        rarity: 'silver',
+        rarity: 'common',
         statChanges: [],
         desc: 'Aucun effet.'
       }
@@ -1065,21 +1091,21 @@ function buildTrainingEvent(level, player) {
       {
         id: 'training-speed',
         label: 'Reflexes',
-        rarity: 'gold',
+        rarity: 'rare',
         statChanges: speedStats,
         desc: buildEventDesc(speedStats)
       },
       {
         id: 'training-power',
         label: 'Force brute',
-        rarity: 'gold',
+        rarity: 'rare',
         statChanges: powerStats,
         desc: buildEventDesc(powerStats)
       },
       {
         id: 'training-leave',
         label: 'Partir',
-        rarity: 'silver',
+        rarity: 'common',
         statChanges: [],
         desc: 'Aucun effet.'
       }
@@ -1118,7 +1144,7 @@ function buildMerchantEvent(level, player) {
     options.push({
       id: 'merchant-weapon',
       label: 'Acheter une arme',
-      rarity: weapon.rarity || 'gold',
+      rarity: normalizeRarity(weapon.rarity) || 'rare',
       weaponId: weapon.id,
       statChanges: weaponCost,
       desc: buildEventDesc(weaponCost, [`Arme: ${weapon.name}`])
@@ -1127,7 +1153,7 @@ function buildMerchantEvent(level, player) {
     options.push({
       id: 'merchant-weapon',
       label: 'Acheter une arme',
-      rarity: 'gold',
+      rarity: 'rare',
       statChanges: bargainStats,
       desc: buildEventDesc(bargainStats)
     });
@@ -1137,7 +1163,7 @@ function buildMerchantEvent(level, player) {
     options.push({
       id: 'merchant-talent',
       label: 'Signer un contrat',
-      rarity: talent.rarity || 'gold',
+      rarity: normalizeRarity(talent.rarity) || 'rare',
       talentId: talent.id,
       statChanges: talentCost,
       desc: buildEventDesc(talentCost, [`Talent: ${talent.name}`])
@@ -1146,7 +1172,7 @@ function buildMerchantEvent(level, player) {
     options.push({
       id: 'merchant-talent',
       label: 'Signer un contrat',
-      rarity: 'gold',
+      rarity: 'rare',
       statChanges: bargainStats,
       desc: buildEventDesc(bargainStats)
     });
@@ -1155,7 +1181,7 @@ function buildMerchantEvent(level, player) {
   options.push({
     id: 'merchant-bargain',
     label: 'Marchander',
-    rarity: 'silver',
+    rarity: 'uncommon',
     statChanges: bargainStats,
     desc: buildEventDesc(bargainStats)
   });
@@ -1211,21 +1237,21 @@ function buildRiskEvent(level, player) {
       {
         id: 'gamble-roll',
         label: 'Lancer les des',
-        rarity: 'purple',
+        rarity: 'epic',
         outcomes: gambleOutcomes,
         desc: buildRiskDesc(gambleOutcomes)
       },
       {
         id: 'gamble-coin',
         label: 'Pile ou face',
-        rarity: 'gold',
+        rarity: 'rare',
         outcomes: coinOutcomes,
         desc: buildRiskDesc(coinOutcomes)
       },
       {
         id: 'gamble-leave',
         label: 'Refuser',
-        rarity: 'silver',
+        rarity: 'common',
         statChanges: [],
         desc: 'Aucun effet.'
       }
@@ -1281,7 +1307,7 @@ function buildShopEvent(level, player) {
   options.push({
     id: 'shop-leave',
     label: 'Quitter la boutique',
-    rarity: 'silver',
+    rarity: 'common',
     statChanges: [],
     desc: 'Aucun effet.',
     exit: true
@@ -1327,21 +1353,21 @@ function buildCurseEvent(level, player) {
       {
         id: 'curse-blood',
         label: 'Marque du sang',
-        rarity: 'red',
+        rarity: 'ultimate',
         statChanges: curseBlood,
         desc: buildEventDesc(curseBlood)
       },
       {
         id: 'curse-shade',
         label: 'Ombre vive',
-        rarity: 'purple',
+        rarity: 'epic',
         statChanges: curseShade,
         desc: buildEventDesc(curseShade)
       },
       {
         id: 'curse-leave',
         label: 'Refuser',
-        rarity: 'silver',
+        rarity: 'common',
         statChanges: [],
         desc: 'Aucun effet.'
       }
@@ -1412,7 +1438,7 @@ export function applyEventChoice(choiceId) {
     }
     player.bonusStats[stat] = (player.bonusStats[stat] || 0) + change.value;
     if (change.reward && change.value > 0) {
-      const rewardRarity = change.rarity || resolved.rarity || choice.rarity || 'silver';
+      const rewardRarity = normalizeRarity(change.rarity || resolved.rarity || choice.rarity || 'common');
       player.runRewards.push(createRunReward({
         type: 'stat',
         stat,
@@ -1433,7 +1459,7 @@ export function applyEventChoice(choiceId) {
       type: 'talent',
       talentId,
       label: talent ? talent.name : talentId,
-      rarity: talent?.rarity || resolved.rarity || choice.rarity || 'silver'
+      rarity: normalizeRarity(talent?.rarity || resolved.rarity || choice.rarity || 'common')
     }));
   }
 
@@ -1448,7 +1474,7 @@ export function applyEventChoice(choiceId) {
       type: 'weapon',
       weaponId,
       label: weapon ? weapon.name : weaponId,
-      rarity: weapon?.rarity || resolved.rarity || choice.rarity || 'silver'
+      rarity: normalizeRarity(weapon?.rarity || resolved.rarity || choice.rarity || 'common')
     }));
   }
 
@@ -1496,7 +1522,7 @@ export function applyRewardChoice(choiceId) {
       stat: choice.stat,
       value: choice.value,
       label: choice.label,
-      rarity: choice.rarity || 'silver'
+      rarity: normalizeRarity(choice.rarity || 'common')
     }));
   } else if (choice.type === 'talent') {
     if (!gameState.player.talents.includes(choice.talentId)) {
@@ -1507,7 +1533,7 @@ export function applyRewardChoice(choiceId) {
       type: 'talent',
       talentId: choice.talentId,
       label: choice.label,
-      rarity: talent?.rarity || choice.rarity || 'silver'
+      rarity: normalizeRarity(talent?.rarity || choice.rarity || 'common')
     }));
   } else if (choice.type === 'weapon') {
     if (!gameState.player.weapons.includes(choice.weaponId)) {
@@ -1519,7 +1545,7 @@ export function applyRewardChoice(choiceId) {
       type: 'weapon',
       weaponId: choice.weaponId,
       label: choice.label,
-      rarity: weapon?.rarity || choice.rarity || 'silver'
+      rarity: normalizeRarity(weapon?.rarity || choice.rarity || 'common')
     }));
   }
 
