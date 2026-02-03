@@ -32,7 +32,7 @@ function describeTalent(id) {
 }
 
 function createCombatant(profile, weaponPool = null) {
-  const fallbackWeapon = getDefaultWeapon().id;
+  const fallbackWeapon = getDefaultWeapon();
   return {
     name: profile.name,
     level: profile.level,
@@ -40,7 +40,7 @@ function createCombatant(profile, weaponPool = null) {
     weapon: profile.weapon || null,
     weaponPool: Array.isArray(weaponPool) ? weaponPool.slice() : null,
     baseStats: { ...profile.stats },
-    currentWeaponId: profile.weapon || fallbackWeapon,
+    currentWeapon: profile.weapon || fallbackWeapon,
     maxHp: profile.stats.hp,
     hp: profile.stats.hp,
     atk: profile.stats.atk,
@@ -57,12 +57,12 @@ function createCombatant(profile, weaponPool = null) {
 function pickWeaponForAttack(attacker) {
   if (Array.isArray(attacker.weaponPool) && attacker.weaponPool.length) {
     const pick = attacker.weaponPool[Math.floor(Math.random() * attacker.weaponPool.length)];
-    return pick || getDefaultWeapon().id;
+    return pick || getDefaultWeapon();
   }
-  return attacker.weapon || getDefaultWeapon().id;
+  return attacker.weapon || getDefaultWeapon();
 }
 
-function getAttackStats(attacker, weaponId) {
+function getAttackStats(attacker, weapon) {
   const base = attacker.baseStats || {
     hp: attacker.maxHp,
     atk: attacker.atk,
@@ -72,7 +72,7 @@ function getAttackStats(attacker, weaponId) {
     dodge: attacker.dodge,
     precision: attacker.precision || 0
   };
-  return applyWeaponStats(base, weaponId);
+  return applyWeaponStats(base, weapon);
 }
 
 function calculateDamage(attacker, defenderDef) {
@@ -274,12 +274,12 @@ function getCritShakeLevel(damage, maxHp) {
 export async function startCombat() {
   const defaultWeaponId = getDefaultWeapon().id;
   const ownedWeapons = getOwnedWeapons();
-  const weaponPool = ownedWeapons.length ? ownedWeapons : [defaultWeaponId];
+  const weaponPool = ownedWeapons.length ? ownedWeapons : [getDefaultWeapon()];
   const playerProfile = getPlayerCombatProfile(defaultWeaponId);
   const enemyProfile = consumeNextEnemy();
   const enemyWeaponPool = Array.isArray(enemyProfile.weapons) && enemyProfile.weapons.length
     ? enemyProfile.weapons
-    : [defaultWeaponId];
+    : [getDefaultWeapon()];
   const isBoss = !!enemyProfile?.isBoss;
   const settings = getSettings();
 
@@ -310,12 +310,12 @@ export async function startCombat() {
       if (actor === player) {
         player.init -= 100;
         playCombatFx('A', 'acting');
-        const weaponId = pickWeaponForAttack(player);
-        const weapon = getWeaponById(weaponId) || getDefaultWeapon();
-        player.currentWeaponId = weaponId;
+        const weapon = pickWeaponForAttack(player);
+        const weaponId = weapon?.id || getDefaultWeapon().id;
+        player.currentWeapon = weapon;
         updateFighterWeapon('A', weapon);
-        const attackStats = getAttackStats(player, weaponId);
-        const defenderStats = getAttackStats(enemy, enemy.currentWeaponId || getDefaultWeapon().id);
+        const attackStats = getAttackStats(player, weapon);
+        const defenderStats = getAttackStats(enemy, enemy.currentWeapon || getDefaultWeapon());
         const snapshot = {
           atk: player.atk,
           crit: player.crit,
@@ -347,12 +347,12 @@ export async function startCombat() {
       } else {
         enemy.init -= 100;
         playCombatFx('B', 'acting');
-        const enemyWeaponId = pickWeaponForAttack(enemy);
-        const enemyWeapon = getWeaponById(enemyWeaponId) || getDefaultWeapon();
-        enemy.currentWeaponId = enemyWeaponId;
+        const enemyWeapon = pickWeaponForAttack(enemy);
+        const enemyWeaponId = enemyWeapon?.id || getDefaultWeapon().id;
+        enemy.currentWeapon = enemyWeapon;
         updateFighterWeapon('B', enemyWeapon);
-        const attackerStats = getAttackStats(enemy, enemyWeaponId);
-        const defenderStats = getAttackStats(player, player.currentWeaponId || getDefaultWeapon().id);
+        const attackerStats = getAttackStats(enemy, enemyWeapon);
+        const defenderStats = getAttackStats(player, player.currentWeapon || getDefaultWeapon());
         const snapshot = {
           atk: enemy.atk,
           crit: enemy.crit,
@@ -415,8 +415,8 @@ export async function startCombat() {
   const didWin = result === 'win';
   const baseXp = 130;
   const xpGain = didWin ? (isBoss ? Math.round(baseXp * 1.5) : baseXp) : 0;
-  const goldBase = 14 + playerProfile.level * 2;
-  const goldGain = didWin ? Math.round(goldBase * (isBoss ? 1.6 : 1)) : 0;
+  const goldBase = 8 + playerProfile.level * 1.2;
+  const goldGain = didWin ? Math.round(goldBase * (isBoss ? 1.4 : 1)) : 0;
   const rewards = didWin
     ? grantXp(xpGain, {
         date: new Date().toISOString(),
@@ -479,26 +479,33 @@ export async function startCombat() {
     if (pendingEvent) {
       const target = document.getElementById('combat-log-actions') || document.getElementById('combat-log');
       const handleEventChoice = choiceId => {
-        applyEventChoice(choiceId);
-        const nextEvent = getPendingEvent();
-        if (nextEvent) {
-          renderEventPanel(nextEvent, handleEventChoice, target, false);
-          return;
-        }
-        if (isBoss) {
-          renderBossOptions({
-            onContinue: () => window.dispatchEvent(new Event('return-main')),
-            onCashout: () => {
-              renderBossChest({
-                rewards: getRunRewards(),
-                onPick: rewardKey => cashOutRun(rewardKey),
-                onContinue: () => window.dispatchEvent(new Event('return-main'))
-              });
+        const result = applyEventChoice(choiceId);
+        return {
+          title: result?.title || pendingEvent.title || 'Evenement',
+          choiceLabel: result?.choiceLabel || '',
+          summary: result?.summary || 'Aucun effet.',
+          onContinue: () => {
+            const nextEvent = getPendingEvent();
+            if (nextEvent) {
+              renderEventPanel(nextEvent, handleEventChoice, target, false);
+              return;
             }
-          });
-        } else {
-          renderPostFightButtons();
-        }
+            if (isBoss) {
+              renderBossOptions({
+                onContinue: () => window.dispatchEvent(new Event('return-main')),
+                onCashout: () => {
+                  renderBossChest({
+                    rewards: getRunRewards(),
+                    onPick: rewardKey => cashOutRun(rewardKey),
+                    onContinue: () => window.dispatchEvent(new Event('return-main'))
+                  });
+                }
+              });
+            } else {
+              renderPostFightButtons();
+            }
+          }
+        };
       };
       renderEventPanel(pendingEvent, handleEventChoice, target, true);
       return;

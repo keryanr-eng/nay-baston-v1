@@ -1,6 +1,6 @@
 import { renderMainScreen, renderLevelUpChoices } from './game/ui.js';
 import { startCombat } from './game/combat.js';
-import { importSeed, resetPlayer, getPendingRewards, applyRewardChoice, applyEventChoice, resetAfterDeath } from './game/player.js';
+import { importSeed, resetPlayer, getPendingRewards, applyRewardChoice, applyEventChoice, resetAfterDeath, shouldPromptForName, setPlayerName, getPlayerState } from './game/player.js';
 
 function wireMainScreen() {
   const startBtn = document.getElementById('start-btn');
@@ -18,10 +18,32 @@ function wireSeedImport() {
     const seed = event.detail;
     const imported = importSeed(seed);
     if (imported) {
-      renderMainScreen();
-      wireMainScreen();
+      renderMain();
     }
   });
+}
+
+function promptForNameIfNeeded() {
+  if (!shouldPromptForName()) return;
+  const current = getPlayerState().name || 'Heros';
+  while (true) {
+    const input = window.prompt('Choisis le nom de ton heros', current);
+    if (input === null) {
+      setPlayerName(current);
+      return;
+    }
+    if (!input.trim()) {
+      continue;
+    }
+    setPlayerName(input);
+    return;
+  }
+}
+
+function renderMain() {
+  promptForNameIfNeeded();
+  renderMainScreen();
+  wireMainScreen();
 }
 
 function showPendingRewardsIfAny() {
@@ -34,8 +56,7 @@ function showPendingRewardsIfAny() {
     if (next.length) {
       renderLevelUpChoices(next[0], handleChoice);
     } else {
-      renderMainScreen();
-      wireMainScreen();
+      renderMain();
     }
   };
 
@@ -44,14 +65,12 @@ function showPendingRewardsIfAny() {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-  renderMainScreen();
-  wireMainScreen();
+  renderMain();
   wireSeedImport();
   showPendingRewardsIfAny();
 
   window.addEventListener('return-main', () => {
-    renderMainScreen();
-    wireMainScreen();
+    renderMain();
   });
 
   window.addEventListener('combat-again', async () => {
@@ -60,14 +79,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
   window.addEventListener('event-choice', event => {
     applyEventChoice(event.detail);
-    renderMainScreen();
-    wireMainScreen();
+    renderMain();
   });
 
   window.addEventListener('sacrifice-run', () => {
     resetAfterDeath();
-    renderMainScreen();
-    wireMainScreen();
+    renderMain();
   });
 
   window.resetPlayer = resetPlayer;

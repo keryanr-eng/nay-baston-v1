@@ -1,4 +1,4 @@
-import { getPlayerState, getPlayerCombatProfile, getSettings, updateSettings, getTalentById, getTalentDescription, getWeaponById, getWeaponEffectiveStats, xpToNext, getPendingRewards, getPendingEvent, getOwnedWeapons, getOwnedTalents, getNextEnemyPreview, getDefaultWeapon, computeBaseStats, applyWeaponStats, applyTalentPassives, getOwnedBonusStats } from './player.js';
+import { getPlayerState, getPlayerCombatProfile, getSettings, updateSettings, getTalentById, getTalentDescription, getWeaponById, getWeaponEffectiveStats, xpToNext, getPendingRewards, getPendingEvent, getOwnedWeapons, getOwnedTalents, getNextEnemyPreview, getDefaultWeapon, computeBaseStats, applyWeaponStats, applyTalentPassives, getOwnedBonusStats, getWeaponCollectionBonus, applyEventChoice } from './player.js';
 
 const FX_TIMERS = {
   A: {},
@@ -99,10 +99,15 @@ function spawnFxText(side, text, kind) {
   setTimeout(() => pop.remove(), 900);
 }
 
-function weaponStatsText(weapon) {
-  if (!weapon || !weapon.stats || !Object.keys(weapon.stats).length) return 'Arme de base.';
+function weaponStatsText(weaponInstance) {
+  if (!weaponInstance) return 'Arme de base.';
+  const weaponId = weaponInstance.id || weaponInstance.weaponId || weaponInstance?.id;
+  if (weaponId === 'fists') return 'Arme de base.';
+  const weaponDef = weaponInstance.stats ? weaponInstance : getWeaponById(weaponId);
+  if (!weaponDef || !weaponDef.stats || !Object.keys(weaponDef.stats).length) return 'Arme de base.';
+  const rarity = weaponInstance.rarity || weaponDef.rarity || 'common';
+  const stats = getWeaponEffectiveStats(weaponDef, rarity, weaponInstance.bonusStats);
   const parts = [];
-  const stats = getWeaponEffectiveStats(weapon);
   const format = (key, value) => {
     const sign = value > 0 ? '+' : '';
     if (key === 'crit' || key === 'dodge' || key === 'precision') {
@@ -113,6 +118,30 @@ function weaponStatsText(weapon) {
   };
   Object.keys(stats).forEach(key => {
     parts.push(format(key, stats[key]));
+  });
+  return parts.join(' | ');
+}
+
+function shouldShowRewardTip(tip, label, desc) {
+  if (!tip) return false;
+  const text = `${label || ''} ${desc || ''}`.trim();
+  if (!text) return true;
+  return !(/[+\\d%]/.test(text));
+}
+
+function formatBonusStats(stats) {
+  if (!stats) return '';
+  const order = ['hp', 'atk', 'def', 'spd', 'crit', 'dodge', 'precision'];
+  const parts = [];
+  order.forEach(key => {
+    const value = stats[key];
+    if (!value) return;
+    const label = key === 'precision' ? 'PREC' : key.toUpperCase();
+    if (key === 'crit' || key === 'dodge' || key === 'precision') {
+      parts.push(`${label} +${(value * 100).toFixed(1)}%`);
+    } else {
+      parts.push(`${label} +${Math.round(value)}`);
+    }
   });
   return parts.join(' | ');
 }
@@ -182,31 +211,99 @@ function startAmbientSound() {
     if (!AudioCtx) return;
     const ctx = new AudioCtx();
     const master = ctx.createGain();
-    master.gain.value = 0.03;
+    master.gain.value = 0.032;
 
     const low = ctx.createOscillator();
     low.type = 'sine';
-    low.frequency.setValueAtTime(55, ctx.currentTime);
+    low.frequency.setValueAtTime(48, ctx.currentTime);
+    low.detune.value = -6;
+    const lowGain = ctx.createGain();
+    lowGain.gain.value = 0.5;
 
     const mid = ctx.createOscillator();
     mid.type = 'triangle';
-    mid.frequency.setValueAtTime(110, ctx.currentTime);
+    mid.frequency.setValueAtTime(72, ctx.currentTime);
+    mid.detune.value = 5;
+    const midGain = ctx.createGain();
+    midGain.gain.value = 0.16;
+
+    const high = ctx.createOscillator();
+    high.type = 'sine';
+    high.frequency.setValueAtTime(57, ctx.currentTime);
+    high.detune.value = -3;
+    const highGain = ctx.createGain();
+    highGain.gain.value = 0.12;
 
     const filter = ctx.createBiquadFilter();
     filter.type = 'lowpass';
-    filter.frequency.setValueAtTime(280, ctx.currentTime);
-    filter.Q.value = 0.7;
+    filter.frequency.setValueAtTime(240, ctx.currentTime);
+    filter.Q.value = 1.1;
 
-    low.connect(filter);
-    mid.connect(filter);
+    const lfo = ctx.createOscillator();
+    lfo.type = 'sine';
+    lfo.frequency.setValueAtTime(0.03, ctx.currentTime);
+    const lfoGain = ctx.createGain();
+    lfoGain.gain.value = 55;
+    lfo.connect(lfoGain);
+    lfoGain.connect(filter.frequency);
+
+    const ampLfo = ctx.createOscillator();
+    ampLfo.type = 'sine';
+    ampLfo.frequency.setValueAtTime(0.05, ctx.currentTime);
+    const ampLfoGain = ctx.createGain();
+    ampLfoGain.gain.value = 0.01;
+    ampLfo.connect(ampLfoGain);
+    ampLfoGain.connect(master.gain);
+
+    const noiseBuffer = ctx.createBuffer(1, ctx.sampleRate * 2, ctx.sampleRate);
+    const noiseData = noiseBuffer.getChannelData(0);
+    for (let i = 0; i < noiseData.length; i++) {
+      noiseData[i] = (Math.random() * 2 - 1) * 0.4;
+    }
+    const noise = ctx.createBufferSource();
+    noise.buffer = noiseBuffer;
+    noise.loop = true;
+
+    const noiseFilter = ctx.createBiquadFilter();
+    noiseFilter.type = 'bandpass';
+    noiseFilter.frequency.setValueAtTime(240, ctx.currentTime);
+    noiseFilter.Q.value = 0.9;
+    const noiseGain = ctx.createGain();
+    noiseGain.gain.value = 0.011;
+
+    const delay = ctx.createDelay();
+    delay.delayTime.value = 0.04;
+    const feedback = ctx.createGain();
+    feedback.gain.value = 0.2;
+
+    low.connect(lowGain);
+    mid.connect(midGain);
+    high.connect(highGain);
+    lowGain.connect(filter);
+    midGain.connect(filter);
+    highGain.connect(filter);
+    filter.connect(delay);
     filter.connect(master);
+
+    delay.connect(feedback);
+    feedback.connect(delay);
+    delay.connect(master);
+
+    noise.connect(noiseFilter);
+    noiseFilter.connect(noiseGain);
+    noiseGain.connect(master);
+
     master.connect(ctx.destination);
 
     low.start();
     mid.start();
+    high.start();
+    noise.start();
+    lfo.start();
+    ampLfo.start();
 
     ambientCtx = ctx;
-    ambientNodes = { low, mid, filter, master };
+    ambientNodes = { low, mid, high, filter, master, noise, noiseFilter, lfo, lfoGain, ampLfo, ampLfoGain, lowGain, midGain, highGain, noiseGain, delay, feedback };
   } catch (error) {
     // ignore audio errors
   }
@@ -217,6 +314,10 @@ function stopAmbientSound() {
   try {
     ambientNodes.low.stop();
     ambientNodes.mid.stop();
+    ambientNodes.high?.stop?.();
+    ambientNodes.noise?.stop?.();
+    ambientNodes.lfo?.stop?.();
+    ambientNodes.ampLfo?.stop?.();
     ambientCtx.close();
   } catch (error) {
     // ignore audio errors
@@ -267,17 +368,18 @@ export function renderMainScreen() {
   const hasPendingEvent = !!pendingEvent;
 
   const ownedWeapons = getOwnedWeapons();
-  const weaponList = ownedWeapons.length
-    ? ownedWeapons.map(id => getWeaponById(id)).filter(Boolean)
-    : [getDefaultWeapon()];
-  const weaponNames = weaponList.map(w => w.name).join(', ');
+  const weaponPool = ownedWeapons.length ? ownedWeapons : [getDefaultWeapon()];
+  const weaponList = weaponPool.map(entry => {
+    const def = getWeaponById(entry.id) || getDefaultWeapon();
+    return { ...def, ...entry };
+  });
   const ownedTalents = getOwnedTalents();
   const combinedTalents = ownedTalents;
   const combinedBonus = getOwnedBonusStats();
+  const weaponCollection = getWeaponCollectionBonus();
   const baseStats = computeBaseStats(player.level, combinedBonus);
-  const weaponIds = ownedWeapons.length ? ownedWeapons : [getDefaultWeapon().id];
-  const powerSamples = weaponIds.map(weaponId => {
-    const withWeapon = applyWeaponStats(baseStats, weaponId);
+  const powerSamples = weaponPool.map(weaponEntry => {
+    const withWeapon = applyWeaponStats(baseStats, weaponEntry);
     const withTalents = applyTalentPassives(withWeapon, combinedTalents);
     return computePowerScore(withTalents, combinedTalents);
   });
@@ -290,13 +392,43 @@ export function renderMainScreen() {
       }).join('')
     : '<li class="muted">Aucun pour le moment.</li>';
 
-  const history = player.history.length
-    ? player.history.map(item => {
-        const date = new Date(item.date).toLocaleDateString('fr-FR');
-        const badge = item.result === 'win' ? 'badge win' : item.result === 'lose' ? 'badge lose' : 'badge tie';
-        return `<li><span class="${badge}">${item.result}</span> ${item.enemy} - ${item.hpLeft} PV restants <span class="muted">${date}</span></li>`;
+  const collectionTotalLine = formatBonusStats(weaponCollection.stats);
+  const collectionPerWeaponLine = formatBonusStats(weaponCollection.perWeapon);
+  const collectionSetsLine = weaponCollection.sets.length
+    ? weaponCollection.sets.map(set => {
+        const text = formatBonusStats(set.stats);
+        const cls = set.active ? 'collection-set active' : 'collection-set';
+        return `<span class="${cls}">${set.count} armes: ${text || 'Aucun bonus'}</span>`;
       }).join('')
-    : '<li class="muted">Aucun combat enregistre.</li>';
+    : '';
+
+  const historyItems = player.history.length
+    ? player.history.map(item => {
+        if (item.type === 'reward') {
+          const label = item.label || 'Bonus';
+          const source = item.source ? `${item.source} - ` : '';
+          const typeLabel = item.rewardType === 'weapon' ? 'arme' : item.rewardType === 'talent' ? 'talent' : 'bonus';
+          const icon = item.rewardType === 'weapon'
+            ? '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 3l7 7-2.5 2.5-7-7L14 3z"/><path d="M9.5 8.5l-5 5"/><path d="M4.5 13.5L3 18l4.5-1.5"/></svg>'
+            : item.rewardType === 'talent'
+              ? '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l7 7-7 11-7-11 7-7z"/><path d="M12 7l3 3-3 5-3-5 3-3z"/></svg>'
+              : '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3c2 3 4 4.5 4 7.5 0 3-2 5.5-4 7.5-2-2-4-4.5-4-7.5 0-3 2-4.5 4-7.5z"/><path d="M12 9c1 1.2 1.5 2.1 1.5 3.4 0 1.4-.7 2.5-1.5 3.4-.8-.9-1.5-2-1.5-3.4 0-1.3.5-2.2 1.5-3.4z"/></svg>';
+          const rarityClass = item.rarity ? `rarity-text-${normalizeRarity(item.rarity)}` : '';
+          const desc = item.desc ? ` <span class="muted">${item.desc}</span>` : '';
+          return `<li><span class="badge reward">${typeLabel}</span><span class="history-icon icon-${item.rewardType}">${icon}</span> ${source}<span class="history-label ${rarityClass}">${label}</span>${desc}</li>`;
+        }
+        if (item.type === 'event') {
+          const title = item.title || 'Evenement';
+          const summary = item.summary || '';
+          const icon = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4h10a3 3 0 0 1 3 3v10H7a3 3 0 0 1-3-3V4h3z"/><path d="M7 4v10a2 2 0 0 0 2 2h11"/><path d="M9 7h6"/><path d="M9 10h6"/></svg>';
+          return `<li><span class="badge event">event</span><span class="history-icon icon-event">${icon}</span> ${title} - ${summary}</li>`;
+        }
+        return '';
+      }).filter(Boolean)
+    : [];
+  const history = historyItems.length
+    ? historyItems.join('')
+    : '<li class="muted">Aucun bonus ou evenement enregistre.</li>';
 
   const app = document.getElementById('app');
   const gameUI = document.getElementById('game-ui');
@@ -341,9 +473,17 @@ export function renderMainScreen() {
           <div class="weapon-line">
             <span>Armes possedees</span>
             <strong class="weapon-pills">
-              ${weaponList.map(w => `<span class="weapon-pill" data-tip="${weaponStatsText(w)}">${w.name}</span>`).join(' ')}
+              ${weaponList.map(w => `<span class="weapon-pill rarity-${normalizeRarity(w.rarity)}" data-tip="${weaponStatsText(w)}">${w.name}</span>`).join(' ')}
             </strong>
             <span class="muted">${ownedWeapons.length ? 'Utilise une arme au hasard en combat.' : 'Aucune arme, utilise les poings.'}</span>
+          </div>
+          <div class="collection-line">
+            <span>Bonus collection (${weaponCollection.count} armes)</span>
+            <strong>${collectionTotalLine || 'Aucun bonus pour le moment.'}</strong>
+            <span class="muted small">Par arme: ${collectionPerWeaponLine || 'Aucun'}</span>
+            <div class="collection-sets">
+              ${collectionSetsLine}
+            </div>
           </div>
           <div class="power-line">Puissance totale: ${playerPower}</div>
         </section>
@@ -438,9 +578,11 @@ export function renderMainScreen() {
             <div class="muted small">Armes</div>
             <ul class="list">
               ${(player.permanent?.weapons || []).length
-                ? player.permanent.weapons.map(id => {
+                ? player.permanent.weapons.map(entry => {
+                    const id = typeof entry === 'object' ? entry.id : entry;
+                    const rarity = normalizeRarity(typeof entry === 'object' ? entry.rarity : null);
                     const w = getWeaponById(id);
-                    return `<li>${w ? w.name : id}</li>`;
+                    return `<li class="rarity-${rarity}">${w ? w.name : id}</li>`;
                   }).join('')
                 : '<li class="muted">Aucune arme</li>'}
             </ul>
@@ -456,7 +598,16 @@ export function renderMainScreen() {
 
   if (pendingEvent && !hasPendingRewards) {
     const target = document.getElementById('main-event-panel');
-    renderEventPanel(pendingEvent, null, target);
+    const handleEventChoice = choiceId => {
+      const result = applyEventChoice(choiceId);
+      return {
+        title: result?.title || pendingEvent.title || 'Evenement',
+        choiceLabel: result?.choiceLabel || '',
+        summary: result?.summary || 'Aucun effet.',
+        onContinue: () => window.dispatchEvent(new Event('return-main'))
+      };
+    };
+    renderEventPanel(pendingEvent, handleEventChoice, target);
   }
 
   document.getElementById('copy-seed-btn')?.addEventListener('click', () => {
@@ -514,7 +665,7 @@ export function renderFightScreen(player, enemy) {
             <div class="portrait-head" data-profile="${playerProfile}"></div>
             <div class="portrait-info">
               <div class="portrait-name">${player.name}</div>
-              <div class="portrait-sub">Niv ${player.level} - Arme aleatoire</div>
+              <div class="portrait-sub">Niv ${player.level} - Arme: <span class="portrait-weapon rarity-common">Poings</span></div>
             </div>
           </div>
           <div class="fighter-sprite-wrap">
@@ -535,7 +686,7 @@ export function renderFightScreen(player, enemy) {
             <div class="portrait-head" data-profile="${enemyProfile}"></div>
             <div class="portrait-info">
               <div class="portrait-name">${enemy.name}</div>
-              <div class="portrait-sub">Niv ${enemy.level} - ${enemy.isBoss ? 'BOSS' : enemyProfile}</div>
+              <div class="portrait-sub">Niv ${enemy.level} - ${enemy.isBoss ? 'BOSS' : enemyProfile} - Arme: <span class="portrait-weapon rarity-common">Poings</span></div>
             </div>
           </div>
           <div class="fighter-sprite-wrap">
@@ -665,7 +816,8 @@ export function updateFighterWeapon(side, weapon) {
   const fighter = getFighterEl(side);
   if (!fighter) return;
   const weaponId = weapon?.id || 'fists';
-  const rarity = weaponId === 'fists' ? 'none' : (weapon?.rarity || 'none');
+  const rawRarity = weaponId === 'fists' ? 'none' : (weapon?.rarity || 'common');
+  const rarity = rawRarity === 'none' ? 'none' : normalizeRarity(rawRarity);
   fighter.setAttribute('data-weapon', rarity);
   const spriteWeapon = fighter.querySelector('.sprite-weapon');
   if (spriteWeapon) {
@@ -675,6 +827,14 @@ export function updateFighterWeapon(side, weapon) {
   const spriteArc = fighter.querySelector('.sprite-arc');
   if (spriteArc) {
     spriteArc.setAttribute('data-weapon-id', weaponId);
+  }
+  const weaponLabel = fighter.querySelector('.portrait-weapon');
+  if (weaponLabel) {
+    const weaponDef = weaponId === 'fists' ? getDefaultWeapon() : getWeaponById(weaponId);
+    const displayName = weaponDef?.name || 'Poings';
+    const labelRarity = rarity === 'none' ? 'common' : rarity;
+    weaponLabel.textContent = displayName;
+    weaponLabel.className = `portrait-weapon rarity-${labelRarity}`;
   }
 }
 
@@ -784,9 +944,10 @@ export function renderBossChest({ rewards = [], onPick, onContinue }) {
               : 'Bonus permanent.';
           const rarity = normalizeRarity(reward.rarity || weapon?.rarity || talent?.rarity || 'common');
           const tip = reward.type === 'weapon'
-            ? weaponStatsText(weapon)
+            ? weaponStatsText({ id: reward.weaponId, rarity })
             : '';
-          const tipAttr = tip ? ` data-tip="${tip}"` : '';
+          const showTip = shouldShowRewardTip(tip, title, desc);
+          const tipAttr = showTip ? ` data-tip="${tip}"` : '';
           return `
             <button class="reward-card rarity-${rarity}" data-reward-key="${reward.key}" data-type="${reward.type}" data-rarity="${rarity}"${tipAttr}>
               <div class="reward-title">${title}</div>
@@ -864,6 +1025,53 @@ export function renderEventPanel(eventData, onSelect = null, target = null, play
   const iconText = EVENT_ICON_TEXT[kind] || 'EVT';
   const player = getPlayerState();
   const gold = player.gold || 0;
+  const renderResult = result => {
+    const currentPlayer = getPlayerState();
+    const nextGold = currentPlayer.gold || 0;
+    const title = result?.title || eventData.title || 'Evenement';
+    const choiceLabel = result?.choiceLabel ? `<div class="event-result-choice">${result.choiceLabel}</div>` : '';
+    const summary = result?.summary || 'Aucun effet.';
+    const continueLabel = result?.continueLabel || 'Continuer';
+
+    container.innerHTML = `
+      <div class="event-panel event-${kind}">
+        <div class="event-header">
+          <div class="event-icon event-${kind}">${iconText}</div>
+          <span class="event-tag">EVENEMENT</span>
+          ${kind === 'shop' ? `<span class="event-gold">Or: ${nextGold}</span>` : ''}
+          <div>
+            <div class="event-title">${title}</div>
+            <div class="event-text">${eventData.text || ''}</div>
+          </div>
+        </div>
+        <div class="event-result">
+          ${choiceLabel}
+          <div class="event-result-text">${summary}</div>
+        </div>
+        <button id="event-continue-btn" class="primary">${continueLabel}</button>
+      </div>
+    `;
+
+    const continueBtn = container.querySelector('#event-continue-btn');
+    if (continueBtn) {
+      continueBtn.addEventListener('click', () => {
+        if (result?.onContinue) {
+          result.onContinue();
+        } else {
+          window.dispatchEvent(new Event('return-main'));
+        }
+      });
+    }
+
+    const resultBox = container.querySelector('.event-result');
+    if (resultBox) {
+      resultBox.classList.remove('flash');
+      void resultBox.offsetWidth;
+      resultBox.classList.add('flash');
+    }
+    const settings = getSettings();
+    playEventSound(settings.sound);
+  };
 
   container.innerHTML = `
     <div class="event-panel event-${kind}">
@@ -879,9 +1087,10 @@ export function renderEventPanel(eventData, onSelect = null, target = null, play
       <div class="event-grid">
         ${(eventData.options || []).map(option => {
           const weapon = option.weaponId ? getWeaponById(option.weaponId) : null;
-          const tip = weapon ? weaponStatsText(weapon) : '';
-          const tipAttr = tip ? ` data-tip="${tip}"` : '';
           const rarity = normalizeRarity(option.rarity || 'common');
+          const tip = weapon ? weaponStatsText({ id: option.weaponId, rarity }) : '';
+          const showTip = shouldShowRewardTip(tip, option.label, option.desc);
+          const tipAttr = showTip ? ` data-tip="${tip}"` : '';
           const cost = option.cost || 0;
           const canAfford = cost ? gold >= cost : true;
           const disabledAttr = canAfford ? '' : ' disabled';
@@ -907,7 +1116,10 @@ export function renderEventPanel(eventData, onSelect = null, target = null, play
         other.disabled = true;
       });
       if (onSelect) {
-        onSelect(choiceId);
+        const result = onSelect(choiceId);
+        if (result) {
+          renderResult(result);
+        }
       } else {
         const event = new CustomEvent('event-choice', { detail: choiceId });
         window.dispatchEvent(event);
@@ -973,9 +1185,10 @@ export function renderLevelUpChoices(levelEntry, onConfirm) {
         ${levelEntry.options.map(option => {
           const weapon = option.type === 'weapon' ? getWeaponById(option.weaponId) : null;
           const tip = option.type === 'weapon'
-            ? weaponStatsText(weapon)
+            ? weaponStatsText({ id: option.weaponId, rarity: option.rarity })
             : '';
-          const tipAttr = tip ? ` data-tip="${tip}"` : '';
+          const showTip = shouldShowRewardTip(tip, option.label, option.desc);
+          const tipAttr = showTip ? ` data-tip="${tip}"` : '';
           const rarity = normalizeRarity(option.rarity);
           return `
             <button class="reward-card rarity-${rarity}" data-choice="${option.id}"${tipAttr}>

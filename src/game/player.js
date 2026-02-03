@@ -67,6 +67,43 @@ const DEFAULT_WEAPON = {
   stats: { atk: 0 }
 };
 
+const WEAPON_COLLECTION_BONUS = {
+  perWeapon: {
+    hp: 3,
+    atk: 1,
+    def: 1,
+    spd: 0,
+    crit: 0.002,
+    dodge: 0,
+    precision: 0.002
+  },
+  sets: [
+    { count: 2, stats: { spd: 1 } },
+    { count: 3, stats: { hp: 6 } },
+    { count: 4, stats: { atk: 2 } },
+    { count: 5, stats: { def: 2 } },
+    { count: 6, stats: { crit: 0.01, precision: 0.01 } }
+  ]
+};
+
+const WEAPON_DUPLICATE_BONUS = {
+  dagger: { spd: 1, crit: 0.002 },
+  sword: { atk: 1 },
+  axe: { atk: 2 },
+  shield: { def: 2, hp: 5 },
+  spear: { atk: 1, spd: 1 },
+  gloves: { spd: 1, dodge: 0.003 }
+};
+
+const WEAPON_DUPLICATE_RARITY_MULTIPLIERS = {
+  common: 1,
+  uncommon: 1.3,
+  rare: 2,
+  epic: 2.8,
+  legendary: 3.6,
+  ultimate: 4.6
+};
+
 const DODGE_CAP = 0.6;
 const RARITY_MULTIPLIERS = {
   common: 1,
@@ -84,7 +121,7 @@ const LEGACY_RARITY_MAP = {
   red: 'ultimate'
 };
 
-const STORAGE_VERSION = 2;
+const STORAGE_VERSION = 3;
 
 let gameState = null;
 
@@ -99,6 +136,110 @@ function clamp(value, min, max) {
 function normalizeRarity(rarity) {
   if (!rarity) return 'common';
   return LEGACY_RARITY_MAP[rarity] || rarity;
+}
+
+function normalizeWeaponEntry(entry) {
+  if (!entry) return null;
+  if (typeof entry === 'string') {
+    const base = WEAPONS.find(w => w.id === entry);
+    return { id: entry, rarity: normalizeRarity(base?.rarity || 'common') };
+  }
+  if (typeof entry === 'object') {
+    const id = entry.id || entry.weaponId;
+    if (!id) return null;
+    const base = WEAPONS.find(w => w.id === id);
+    return {
+      id,
+      rarity: normalizeRarity(entry.rarity || base?.rarity || 'common')
+    };
+  }
+  return null;
+}
+
+function getWeaponEntries(player) {
+  const runWeapons = Array.isArray(player.weapons) ? player.weapons : [];
+  const permWeapons = Array.isArray(player.permanent?.weapons) ? player.permanent.weapons : [];
+  const list = [...runWeapons, ...permWeapons];
+  return list.map(normalizeWeaponEntry).filter(Boolean);
+}
+
+function computeWeaponDuplicateBonus(weaponId, duplicates = []) {
+  const base = WEAPON_DUPLICATE_BONUS[weaponId] || {};
+  const total = { ...EMPTY_BONUS_STATS };
+  duplicates.forEach(rarity => {
+    const normalized = normalizeRarity(rarity);
+    const mult = WEAPON_DUPLICATE_RARITY_MULTIPLIERS[normalized] || 1;
+    Object.keys(base).forEach(stat => {
+      const value = base[stat];
+      const scaled = stat === 'crit' || stat === 'dodge' || stat === 'precision'
+        ? Number((value * mult).toFixed(3))
+        : Math.round(value * mult);
+      total[stat] = (total[stat] || 0) + scaled;
+    });
+  });
+  return total;
+}
+
+function getWeaponInventory(player) {
+  const entries = getWeaponEntries(player);
+  const map = {};
+  entries.forEach(entry => {
+    if (!entry?.id || entry.id === DEFAULT_WEAPON.id) return;
+    const normalized = normalizeRarity(entry.rarity);
+    if (!map[entry.id]) {
+      map[entry.id] = {
+        id: entry.id,
+        rarities: []
+      };
+    }
+    map[entry.id].rarities.push(normalized);
+  });
+  Object.values(map).forEach(item => {
+    const sorted = item.rarities.slice().sort((a, b) => getRarityRank(b) - getRarityRank(a));
+    item.bestRarity = sorted[0] || 'common';
+    const duplicates = sorted.slice(1);
+    item.duplicateBonus = computeWeaponDuplicateBonus(item.id, duplicates);
+    item.duplicateCount = duplicates.length;
+    item.totalCount = item.rarities.length;
+  });
+  return map;
+}
+
+function getBestWeaponInstances(player) {
+  const inventory = getWeaponInventory(player);
+  return Object.values(inventory).map(item => ({
+    id: item.id,
+    rarity: item.bestRarity,
+    bonusStats: item.duplicateBonus,
+    duplicateCount: item.duplicateCount,
+    totalCount: item.totalCount
+  }));
+}
+
+function resolveWeaponInstance(player, weaponInput) {
+  if (!weaponInput) return { id: DEFAULT_WEAPON.id, rarity: DEFAULT_WEAPON.rarity };
+  if (typeof weaponInput === 'object' && weaponInput.id) {
+    return {
+      id: weaponInput.id,
+      rarity: normalizeRarity(weaponInput.rarity || DEFAULT_WEAPON.rarity),
+      bonusStats: weaponInput.bonusStats || {}
+    };
+  }
+  const weaponId = weaponInput;
+  const inventory = getWeaponInventory(player);
+  if (inventory[weaponId]) {
+    return {
+      id: weaponId,
+      rarity: inventory[weaponId].bestRarity,
+      bonusStats: inventory[weaponId].duplicateBonus
+    };
+  }
+  const base = WEAPONS.find(w => w.id === weaponId);
+  return {
+    id: weaponId,
+    rarity: normalizeRarity(base?.rarity || DEFAULT_WEAPON.rarity),
+    bonusStats: {}
+  };
 }
 
 function getRarityMultiplier(rarity) {
@@ -134,7 +275,8 @@ function createEmptyPlayer(seed, name = 'Heros') {
     },
     runRewards: [],
     lastBossLevel: 0,
-    history: []
+    history: [],
+    needsNamePrompt: false
   };
 }
 
@@ -158,14 +300,15 @@ function ensureState() {
 
 function normalizeState(saved) {
   const player = saved.player || createEmptyPlayer(createSeed());
-  const runWeapons = Array.isArray(player.weapons)
-    ? player.weapons.filter(Boolean)
+  const runWeaponsRaw = Array.isArray(player.weapons)
+    ? player.weapons
     : (player.weapon ? [player.weapon] : []);
-  const uniqueRunWeapons = Array.from(new Set(runWeapons));
+  const runWeapons = runWeaponsRaw.map(normalizeWeaponEntry).filter(Boolean);
   const permanent = player.permanent || {};
-  const permanentWeapons = Array.isArray(permanent.weapons)
-    ? permanent.weapons.filter(Boolean)
+  const permanentWeaponsRaw = Array.isArray(permanent.weapons)
+    ? permanent.weapons
     : [];
+  const permanentWeapons = permanentWeaponsRaw.map(normalizeWeaponEntry).filter(Boolean);
   const permanentTalents = Array.isArray(permanent.talents) ? permanent.talents : [];
   const permanentBonusStats = {
     hp: permanent.bonusStats?.hp || 0,
@@ -176,7 +319,10 @@ function normalizeState(saved) {
     dodge: permanent.bonusStats?.dodge || 0,
     precision: permanent.bonusStats?.precision || 0
   };
-  const combinedWeapons = Array.from(new Set([...uniqueRunWeapons, ...permanentWeapons]));
+  const weaponFallback = (typeof player.weapon === 'string' ? player.weapon : player.weapon?.id)
+    || runWeapons[0]?.id
+    || permanentWeapons[0]?.id
+    || null;
   return {
     version: STORAGE_VERSION,
     player: {
@@ -186,8 +332,8 @@ function normalizeState(saved) {
       xp: Math.max(0, player.xp || 0),
       gold: Math.max(0, player.gold || 0),
       talents: Array.isArray(player.talents) ? player.talents : [],
-      weapon: player.weapon || combinedWeapons[0] || null,
-      weapons: uniqueRunWeapons,
+      weapon: weaponFallback,
+      weapons: runWeapons,
       bonusStats: {
         hp: player.bonusStats?.hp || 0,
         atk: player.bonusStats?.atk || 0,
@@ -204,7 +350,8 @@ function normalizeState(saved) {
       },
       runRewards: Array.isArray(player.runRewards) ? player.runRewards : [],
       lastBossLevel: player.lastBossLevel || 0,
-      history: Array.isArray(player.history) ? player.history.slice(-20) : []
+      history: Array.isArray(player.history) ? player.history.slice(-20) : [],
+      needsNamePrompt: !!player.needsNamePrompt
     },
     pendingRewards: Array.isArray(saved.pendingRewards) ? saved.pendingRewards : [],
     pendingEvent: saved.pendingEvent || null,
@@ -243,6 +390,20 @@ export function updateSettings(patch) {
 export function getPlayerState() {
   ensureState();
   return JSON.parse(JSON.stringify(gameState.player));
+}
+
+export function shouldPromptForName() {
+  ensureState();
+  return !!gameState.player.needsNamePrompt;
+}
+
+export function setPlayerName(name) {
+  ensureState();
+  const cleaned = sanitizeName((name || '').trim());
+  gameState.player.name = cleaned || 'Heros';
+  gameState.player.needsNamePrompt = false;
+  saveState();
+  return gameState.player.name;
 }
 
 export function resetPlayer(seed, name) {
@@ -289,9 +450,9 @@ export function computeBaseStats(level, bonusStats = null) {
   return base;
 }
 
-export function getWeaponEffectiveStats(weapon) {
+export function getWeaponEffectiveStats(weapon, rarityOverride = null, extraBonus = null) {
   if (!weapon || !weapon.stats) return {};
-  const multiplier = getRarityMultiplier(weapon.rarity);
+  const multiplier = getRarityMultiplier(rarityOverride || weapon.rarity);
   const scaled = {};
   Object.keys(weapon.stats).forEach(key => {
     const value = weapon.stats[key];
@@ -306,16 +467,26 @@ export function getWeaponEffectiveStats(weapon) {
       scaled[key] = value;
     }
   });
+  if (extraBonus) {
+    Object.keys(extraBonus).forEach(key => {
+      const value = extraBonus[key];
+      if (!value) return;
+      scaled[key] = (scaled[key] || 0) + value;
+    });
+  }
   return scaled;
 }
 
-export function applyWeaponStats(stats, weaponId) {
-  if (!weaponId) return { ...stats };
-  if (weaponId === DEFAULT_WEAPON.id) return { ...stats };
+export function applyWeaponStats(stats, weaponInput) {
+  if (!weaponInput) return { ...stats };
+  const weaponId = typeof weaponInput === 'object' ? weaponInput.id : weaponInput;
+  if (!weaponId || weaponId === DEFAULT_WEAPON.id) return { ...stats };
   const weapon = WEAPONS.find(w => w.id === weaponId);
   if (!weapon) return { ...stats };
+  const rarity = typeof weaponInput === 'object' ? weaponInput.rarity : null;
+  const bonusStats = typeof weaponInput === 'object' ? weaponInput.bonusStats : null;
   const merged = { ...stats };
-  const weaponStats = getWeaponEffectiveStats(weapon);
+  const weaponStats = getWeaponEffectiveStats(weapon, rarity, bonusStats);
   Object.keys(weaponStats).forEach(key => {
     merged[key] = (merged[key] || 0) + weaponStats[key];
   });
@@ -344,9 +515,7 @@ function getCombinedTalents(player) {
 }
 
 function getCombinedWeapons(player) {
-  const runWeapons = Array.isArray(player.weapons) ? player.weapons : [];
-  const permWeapons = Array.isArray(player.permanent?.weapons) ? player.permanent.weapons : [];
-  return Array.from(new Set([...permWeapons, ...runWeapons]));
+  return getBestWeaponInstances(player);
 }
 
 function getCombinedBonusStats(player) {
@@ -356,6 +525,10 @@ function getCombinedBonusStats(player) {
   Object.keys(combined).forEach(key => {
     combined[key] = (run[key] || 0) + (perm[key] || 0);
   });
+  const collection = computeWeaponCollectionBonus(player).stats;
+  Object.keys(combined).forEach(key => {
+    combined[key] += collection[key] || 0;
+  });
   return combined;
 }
 
@@ -364,25 +537,50 @@ function computeMaxPotentialDodge(player) {
   const baseStats = computeBaseStats(player.level, combinedBonus);
   const talents = getCombinedTalents(player);
   const withTalents = applyTalentPassives(baseStats, talents);
-  const weaponIds = getCombinedWeapons(player);
-  const list = weaponIds.length ? weaponIds : [DEFAULT_WEAPON.id];
-  return Math.max(...list.map(id => applyWeaponStats(withTalents, id).dodge));
+  const weaponList = getCombinedWeapons(player);
+  const list = weaponList.length ? weaponList : [{ id: DEFAULT_WEAPON.id, rarity: DEFAULT_WEAPON.rarity }];
+  return Math.max(...list.map(weapon => applyWeaponStats(withTalents, weapon).dodge));
+}
+
+function computeWeaponCollectionBonus(player) {
+  const weapons = getCombinedWeapons(player);
+  const count = weapons.length;
+  const total = { ...EMPTY_BONUS_STATS };
+  const perWeapon = WEAPON_COLLECTION_BONUS.perWeapon;
+  Object.keys(total).forEach(key => {
+    total[key] += (perWeapon[key] || 0) * count;
+  });
+  const sets = WEAPON_COLLECTION_BONUS.sets.map(set => {
+    const active = count >= set.count;
+    if (active) {
+      Object.keys(set.stats).forEach(key => {
+        total[key] += set.stats[key] || 0;
+      });
+    }
+    return { ...set, active };
+  });
+  return {
+    count,
+    stats: total,
+    perWeapon: { ...perWeapon },
+    sets
+  };
 }
 
 export function getPlayerCombatProfile(weaponOverride = null) {
   ensureState();
   const player = gameState.player;
-  const weaponId = weaponOverride ?? player.weapon;
+  const weaponInstance = resolveWeaponInstance(player, weaponOverride ?? player.weapon);
   const bonusStats = getCombinedBonusStats(player);
   const base = computeBaseStats(player.level, bonusStats);
-  const withWeapon = applyWeaponStats(base, weaponId);
+  const withWeapon = applyWeaponStats(base, weaponInstance);
   const withTalents = applyTalentPassives(withWeapon, getCombinedTalents(player));
   return {
     name: player.name,
     level: player.level,
     seed: player.seed,
     talents: getCombinedTalents(player),
-    weapon: weaponId,
+    weapon: weaponInstance?.id || null,
     stats: {
       hp: Math.round(withTalents.hp),
       atk: Math.round(withTalents.atk),
@@ -399,7 +597,8 @@ export function getRandomOwnedWeaponId() {
   ensureState();
   const list = getCombinedWeapons(gameState.player);
   if (!list.length) return DEFAULT_WEAPON.id;
-  return list[Math.floor(Math.random() * list.length)];
+  const pick = list[Math.floor(Math.random() * list.length)];
+  return pick?.id || DEFAULT_WEAPON.id;
 }
 
 export function getOwnedWeapons() {
@@ -415,6 +614,11 @@ export function getOwnedTalents() {
 export function getOwnedBonusStats() {
   ensureState();
   return getCombinedBonusStats(gameState.player);
+}
+
+export function getWeaponCollectionBonus() {
+  ensureState();
+  return computeWeaponCollectionBonus(gameState.player);
 }
 
 export function getRunState() {
@@ -440,11 +644,13 @@ function pickEnemyWeapons(level, isBoss) {
   if (isBoss) count += 1;
   count = Math.min(WEAPONS.length, Math.max(0, count));
   if (!count) return [];
-  const pool = WEAPONS.map(w => w.id);
+  const pool = WEAPONS.slice();
   const picks = [];
   while (picks.length < count && pool.length) {
     const idx = Math.floor(Math.random() * pool.length);
-    picks.push(pool.splice(idx, 1)[0]);
+    const weapon = pool.splice(idx, 1)[0];
+    const rarity = pickWeighted(getRarityWeights(level)).id;
+    picks.push({ id: weapon.id, rarity });
   }
   return picks;
 }
@@ -551,6 +757,41 @@ function addHistoryEntry(entry) {
   gameState.player.history = gameState.player.history.slice(0, 20);
 }
 
+function addRewardHistory(entry) {
+  addHistoryEntry({
+    type: 'reward',
+    date: new Date().toISOString(),
+    ...entry
+  });
+}
+
+function addEventHistory(entry) {
+  addHistoryEntry({
+    type: 'event',
+    date: new Date().toISOString(),
+    ...entry
+  });
+}
+
+function buildEventOutcomeSummary(statChanges, talentId, weaponId, cost) {
+  const parts = [];
+  if (Array.isArray(statChanges) && statChanges.length) {
+    parts.push(buildEventDesc(statChanges));
+  }
+  if (talentId) {
+    const talent = getTalentById(talentId);
+    parts.push(`Talent: ${talent ? talent.name : talentId}`);
+  }
+  if (weaponId) {
+    const weapon = getWeaponById(weaponId);
+    parts.push(`Arme: ${weapon ? weapon.name : weaponId}`);
+  }
+  if (cost) {
+    parts.push(`Or -${cost}`);
+  }
+  return parts.length ? parts.join(' | ') : 'Aucun effet.';
+}
+
 function pickWeighted(list) {
   const total = list.reduce((sum, item) => sum + item.weight, 0);
   let roll = Math.random() * total;
@@ -631,18 +872,16 @@ function buildTalentReward(level, owned, excludedIds = new Set()) {
   };
 }
 
-function buildWeaponReward(level, currentWeapon, excludedIds = new Set(), ownedWeapons = []) {
-  const available = WEAPONS.filter(w => w.id !== currentWeapon && !excludedIds.has(w.id) && !ownedWeapons.includes(w.id));
+function buildWeaponReward(level, currentWeapon, excludedIds = new Set()) {
+  const available = WEAPONS.filter(w => !excludedIds.has(w.id));
   if (!available.length) return null;
-  const rarityPool = getRarityWeights(level).filter(entry => available.some(w => normalizeRarity(w.rarity) === entry.id));
-  const pickRarity = pickWeighted(rarityPool).id;
-  const candidates = available.filter(w => normalizeRarity(w.rarity) === pickRarity);
-  const pick = candidates[Math.floor(Math.random() * candidates.length)];
+  const pick = available[Math.floor(Math.random() * available.length)];
+  const rarity = pickWeighted(getRarityWeights(level)).id;
   return {
     id: `weapon-${pick.id}-${Math.random().toString(36).slice(2, 6)}`,
     type: 'weapon',
     weaponId: pick.id,
-    rarity: pick.rarity,
+    rarity,
     label: pick.name,
     desc: pick.desc
   };
@@ -653,9 +892,8 @@ function buildLevelUpOptions(level) {
   const options = [];
 
   const ownedTalents = getCombinedTalents(player);
-  const ownedWeapons = getCombinedWeapons(player);
   const talentAvailable = TALENTS.some(t => !ownedTalents.includes(t.id));
-  const weaponAvailable = WEAPONS.some(w => !ownedWeapons.includes(w.id));
+  const weaponAvailable = WEAPONS.length > 0;
 
   const tier = Math.floor((level - 1) / 5);
   const bonusChance = Math.min(0.2, tier * 0.04);
@@ -685,7 +923,7 @@ function buildLevelUpOptions(level) {
   if (choice === 'weapon') {
     const usedWeapons = new Set();
     for (let i = 0; i < 3; i++) {
-      const reward = buildWeaponReward(level, player.weapon, usedWeapons, ownedWeapons);
+      const reward = buildWeaponReward(level, player.weapon, usedWeapons);
       if (!reward) break;
       options.push(reward);
       usedWeapons.add(reward.weaponId);
@@ -851,9 +1089,11 @@ function pickByRarity(list, level) {
 }
 
 function pickEventWeapon(player, level) {
-  const owned = getCombinedWeapons(player);
-  const available = WEAPONS.filter(w => !owned.includes(w.id));
-  return pickByRarity(available, level);
+  const available = WEAPONS.slice();
+  if (!available.length) return null;
+  const pick = available[Math.floor(Math.random() * available.length)];
+  const rarity = pickWeighted(getRarityWeights(level)).id;
+  return { ...pick, rarity };
 }
 
 function pickEventTalent(player, level) {
@@ -1261,11 +1501,10 @@ function buildRiskEvent(level, player) {
 
 function buildShopEvent(level, player) {
   const ownedTalents = getCombinedTalents(player);
-  const ownedWeapons = getCombinedWeapons(player);
   const options = [];
 
   const usedWeapons = new Set();
-  const weaponReward = buildWeaponReward(level, player.weapon, usedWeapons, ownedWeapons);
+  const weaponReward = buildWeaponReward(level, player.weapon, usedWeapons);
   if (weaponReward) {
     options.push({
       id: `shop-${weaponReward.id}`,
@@ -1425,18 +1664,21 @@ export function applyEventChoice(choiceId) {
     ? pickOutcome(choice.outcomes) || choice
     : choice;
   const player = gameState.player;
+  const eventTitle = event.title || 'Evenement';
   const cost = resolved.cost ?? choice.cost;
   if (cost) {
     if ((player.gold || 0) < cost) return null;
     player.gold = Math.max(0, (player.gold || 0) - cost);
   }
   const statChanges = Array.isArray(resolved.statChanges) ? resolved.statChanges : [];
+  const appliedChanges = [];
   statChanges.forEach(change => {
     let stat = change.stat;
     if (stat === 'dodge' && change.value > 0 && computeMaxPotentialDodge(player) >= DODGE_CAP) {
       stat = 'precision';
     }
     player.bonusStats[stat] = (player.bonusStats[stat] || 0) + change.value;
+    appliedChanges.push({ stat, value: change.value });
     if (change.reward && change.value > 0) {
       const rewardRarity = normalizeRarity(change.rarity || resolved.rarity || choice.rarity || 'common');
       player.runRewards.push(createRunReward({
@@ -1465,18 +1707,25 @@ export function applyEventChoice(choiceId) {
 
   const weaponId = resolved.weaponId || choice.weaponId;
   if (weaponId) {
-    if (!player.weapons.includes(weaponId)) {
-      player.weapons.push(weaponId);
-    }
+    const weaponRarity = normalizeRarity(resolved.rarity || choice.rarity || 'common');
+    player.weapons.push({ id: weaponId, rarity: weaponRarity });
     player.weapon = weaponId;
     const weapon = getWeaponById(weaponId);
     player.runRewards.push(createRunReward({
       type: 'weapon',
       weaponId,
       label: weapon ? weapon.name : weaponId,
-      rarity: normalizeRarity(weapon?.rarity || resolved.rarity || choice.rarity || 'common')
+      rarity: normalizeRarity(weapon?.rarity || resolved.rarity || choice.rarity || weaponRarity)
     }));
   }
+
+  const summary = buildEventOutcomeSummary(appliedChanges, talentId, weaponId, cost);
+  addEventHistory({
+    title: eventTitle,
+    choice: choice.label || '',
+    summary,
+    rarity: normalizeRarity(resolved.rarity || choice.rarity || 'common')
+  });
 
   if (event.kind === 'shop') {
     if (choice.exit) {
@@ -1489,12 +1738,24 @@ export function applyEventChoice(choiceId) {
       }
     }
     saveState();
-    return choice;
+    return {
+      choice,
+      resolved,
+      title: eventTitle,
+      choiceLabel: choice.label || '',
+      summary
+    };
   }
 
   gameState.pendingEvent = null;
   saveState();
-  return choice;
+  return {
+    choice,
+    resolved,
+    title: eventTitle,
+    choiceLabel: choice.label || '',
+    summary
+  };
 }
 
 export function getPendingRewards() {
@@ -1516,37 +1777,60 @@ export function applyRewardChoice(choiceId) {
   if (!choice) return null;
 
   if (choice.type === 'stat') {
+    const rewardRarity = normalizeRarity(choice.rarity || 'common');
     gameState.player.bonusStats[choice.stat] += choice.value;
     gameState.player.runRewards.push(createRunReward({
       type: 'stat',
       stat: choice.stat,
       value: choice.value,
       label: choice.label,
-      rarity: normalizeRarity(choice.rarity || 'common')
+      rarity: rewardRarity
     }));
+    addRewardHistory({
+      source: `Niveau ${gameState.player.level}`,
+      rewardType: 'stat',
+      label: choice.label,
+      desc: choice.desc || '',
+      rarity: rewardRarity
+    });
   } else if (choice.type === 'talent') {
     if (!gameState.player.talents.includes(choice.talentId)) {
       gameState.player.talents.push(choice.talentId);
     }
     const talent = getTalentById(choice.talentId);
+    const rewardRarity = normalizeRarity(talent?.rarity || choice.rarity || 'common');
     gameState.player.runRewards.push(createRunReward({
       type: 'talent',
       talentId: choice.talentId,
       label: choice.label,
-      rarity: normalizeRarity(talent?.rarity || choice.rarity || 'common')
+      rarity: rewardRarity
     }));
+    addRewardHistory({
+      source: `Niveau ${gameState.player.level}`,
+      rewardType: 'talent',
+      label: talent ? talent.name : choice.label,
+      desc: getTalentDescription(choice.talentId) || '',
+      rarity: rewardRarity
+    });
   } else if (choice.type === 'weapon') {
-    if (!gameState.player.weapons.includes(choice.weaponId)) {
-      gameState.player.weapons.push(choice.weaponId);
-    }
+    const weaponRarity = normalizeRarity(choice.rarity || 'common');
+    gameState.player.weapons.push({ id: choice.weaponId, rarity: weaponRarity });
     gameState.player.weapon = choice.weaponId;
     const weapon = getWeaponById(choice.weaponId);
+    const rewardRarity = normalizeRarity(weapon?.rarity || choice.rarity || weaponRarity);
     gameState.player.runRewards.push(createRunReward({
       type: 'weapon',
       weaponId: choice.weaponId,
       label: choice.label,
-      rarity: normalizeRarity(weapon?.rarity || choice.rarity || 'common')
+      rarity: rewardRarity
     }));
+    addRewardHistory({
+      source: `Niveau ${gameState.player.level}`,
+      rewardType: 'weapon',
+      label: weapon ? weapon.name : choice.label,
+      desc: weapon?.desc || '',
+      rarity: rewardRarity
+    });
   }
 
   gameState.pendingRewards.shift();
@@ -1564,7 +1848,8 @@ export function grantGold(amount) {
   return next;
 }
 
-function resetRunState(player) {
+function resetRunState(player, options = {}) {
+  const { promptName = false } = options;
   player.level = 1;
   player.xp = 0;
   player.gold = 0;
@@ -1576,6 +1861,7 @@ function resetRunState(player) {
   player.lastBossLevel = 0;
   player.history = [];
   player.seed = createSeed();
+  player.needsNamePrompt = promptName;
   gameState.nextEnemy = null;
   gameState.pendingEvent = null;
 }
@@ -1592,7 +1878,7 @@ export function cashOutRun(pickKey = null) {
   const player = gameState.player;
   const rewards = Array.isArray(player.runRewards) ? player.runRewards : [];
   if (!rewards.length) {
-    resetRunState(player);
+    resetRunState(player, { promptName: false });
     gameState.pendingRewards = [];
     gameState.pendingEvent = null;
     saveState();
@@ -1618,27 +1904,27 @@ export function cashOutRun(pickKey = null) {
       player.permanent.talents.push(pick.talentId);
     }
   } else if (pick.type === 'weapon') {
-    if (!player.permanent.weapons.includes(pick.weaponId)) {
-      player.permanent.weapons.push(pick.weaponId);
-    }
+    const rarity = normalizeRarity(pick.rarity || 'common');
+    player.permanent.weapons.push({ id: pick.weaponId, rarity });
   }
 
-  resetRunState(player);
+  resetRunState(player, { promptName: false });
   gameState.pendingRewards = [];
   gameState.pendingEvent = null;
   saveState();
   return pick;
 }
 
-export function resetAfterDeath() {
+export function resetAfterDeath(options = {}) {
   ensureState();
+  const { skipNamePrompt = false } = options;
   const player = gameState.player;
   player.permanent = {
     talents: [],
     weapons: [],
     bonusStats: { ...EMPTY_BONUS_STATS }
   };
-  resetRunState(player);
+  resetRunState(player, { promptName: !skipNamePrompt });
   gameState.pendingRewards = [];
   gameState.pendingEvent = null;
   saveState();
