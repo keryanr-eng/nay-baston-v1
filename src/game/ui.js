@@ -105,6 +105,14 @@ function weaponStatsText(weapon) {
   return parts.join(' | ');
 }
 
+function rewardKeyFrom(reward) {
+  if (!reward) return '';
+  if (reward.type === 'stat') return `stat:${reward.stat}:${reward.value}`;
+  if (reward.type === 'talent') return `talent:${reward.talentId}`;
+  if (reward.type === 'weapon') return `weapon:${reward.weaponId}`;
+  return `${reward.type || 'reward'}`;
+}
+
 function playChestSound(soundEnabled) {
   if (!soundEnabled) return;
   try {
@@ -709,23 +717,45 @@ export function renderBossOptions({ onContinue, onCashout }) {
   });
 }
 
-export function renderBossChest({ onOpen, onContinue }) {
+export function renderBossChest({ rewards = [], onPick, onContinue }) {
   const combatLog = document.getElementById('combat-log');
   const actions = document.getElementById('combat-log-actions');
   const target = actions || combatLog;
   if (!target) return;
+  const list = Array.isArray(rewards) ? rewards : [];
+  const seen = new Set();
+  const choices = list.map(reward => {
+    const key = reward.key || rewardKeyFrom(reward);
+    if (!key || seen.has(key)) return null;
+    seen.add(key);
+    return { ...reward, key };
+  }).filter(Boolean);
 
   target.innerHTML = `
     <div class="chest-panel">
-      <div class="boss-title">Choisis un coffre</div>
-      <div class="chest-grid">
-        ${[0, 1, 2].map(idx => `
-          <button class="chest-card" data-chest="${idx}">
-            <span class="chest-lid"></span>
-            <span class="chest-base"></span>
-            <span class="chest-lock"></span>
-          </button>
-        `).join('')}
+      <div class="boss-title">Choisis le bonus a conserver</div>
+      <div class="reward-grid cashout-grid">
+        ${choices.map(reward => {
+          const typeLabel = reward.type === 'weapon' ? 'WEAPON' : reward.type === 'talent' ? 'TALENT' : 'STAT';
+          const weapon = reward.type === 'weapon' ? getWeaponById(reward.weaponId) : null;
+          const talent = reward.type === 'talent' ? getTalentById(reward.talentId) : null;
+          const title = reward.label || weapon?.name || talent?.name || 'Bonus';
+          const desc = reward.type === 'weapon'
+            ? (weapon?.desc || '')
+            : reward.type === 'talent'
+              ? (getTalentDescription(reward.talentId) || '')
+              : 'Bonus permanent.';
+          const rarity = reward.rarity || weapon?.rarity || talent?.rarity || 'silver';
+          const tip = weapon ? weaponStatsText(weapon) : '';
+          const tipAttr = tip ? ` data-tip="${tip}"` : '';
+          return `
+            <button class="reward-card rarity-${rarity}" data-reward-key="${reward.key}"${tipAttr}>
+              <div class="reward-title">${title}</div>
+              <div class="reward-desc">${desc}</div>
+              <div class="reward-meta">${typeLabel}</div>
+            </button>
+          `;
+        }).join('')}
       </div>
       <div class="chest-result muted" id="chest-result"></div>
       <button id="chest-continue-btn" class="primary" disabled>Continuer</button>
@@ -747,19 +777,23 @@ export function renderBossChest({ onOpen, onContinue }) {
     if (continueBtn) continueBtn.disabled = false;
   };
 
-  Array.from(target.querySelectorAll('.chest-card')).forEach(btn => {
-    btn.addEventListener('click', () => {
-      if (opened) return;
-      opened = true;
-      btn.classList.add('open');
-      playChestSound(settings.sound);
-      const reward = onOpen ? onOpen() : null;
-      setTimeout(() => revealReward(reward), 450);
-      Array.from(target.querySelectorAll('.chest-card')).forEach(other => {
-        other.disabled = true;
+  if (!choices.length) {
+    revealReward(null);
+  } else {
+    Array.from(target.querySelectorAll('[data-reward-key]')).forEach(btn => {
+      btn.addEventListener('click', () => {
+        if (opened) return;
+        opened = true;
+        btn.classList.add('selected');
+        playChestSound(settings.sound);
+        const reward = onPick ? onPick(btn.getAttribute('data-reward-key')) : null;
+        setTimeout(() => revealReward(reward), 300);
+        Array.from(target.querySelectorAll('[data-reward-key]')).forEach(other => {
+          other.disabled = true;
+        });
       });
     });
-  });
+  }
 
   continueBtn?.addEventListener('click', () => {
     onContinue?.();

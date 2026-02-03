@@ -9,6 +9,7 @@ import {
   getTalentScaledValue,
   applyRewardChoice,
   getPendingRewards,
+  getRunRewards,
   maybeCreateEvent,
   applyEventChoice,
   getPendingEvent,
@@ -489,7 +490,8 @@ export async function startCombat() {
             onContinue: () => window.dispatchEvent(new Event('return-main')),
             onCashout: () => {
               renderBossChest({
-                onOpen: () => cashOutRun(),
+                rewards: getRunRewards(),
+                onPick: rewardKey => cashOutRun(rewardKey),
                 onContinue: () => window.dispatchEvent(new Event('return-main'))
               });
             }
@@ -506,7 +508,8 @@ export async function startCombat() {
         onContinue: () => window.dispatchEvent(new Event('return-main')),
         onCashout: () => {
           renderBossChest({
-            onOpen: () => cashOutRun(),
+            rewards: getRunRewards(),
+            onPick: rewardKey => cashOutRun(rewardKey),
             onContinue: () => window.dispatchEvent(new Event('return-main'))
           });
         }

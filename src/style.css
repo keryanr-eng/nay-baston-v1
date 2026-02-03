@@ -1232,8 +1232,35 @@ input[type="text"] {
 }
 
 .fighter.right .sprite-weapon {
-  left: 44%;
+  --weapon-x-right: 0px;
+  --weapon-y-right: 0px;
+  left: calc(36% + var(--weapon-x-right));
+  bottom: calc(66px * var(--bulk) + var(--weapon-y-right));
   --weapon-flip: -1;
+}
+
+.fighter.right .sprite-weapon[data-weapon-id="spear"] {
+  --weapon-x-right: -10px;
+}
+
+.fighter.right .sprite-weapon[data-weapon-id="sword"] {
+  --weapon-x-right: -8px;
+}
+
+.fighter.right .sprite-weapon[data-weapon-id="axe"] {
+  --weapon-x-right: -6px;
+}
+
+.fighter.right .sprite-weapon[data-weapon-id="dagger"] {
+  --weapon-x-right: -5px;
+}
+
+.fighter.right .sprite-weapon[data-weapon-id="shield"] {
+  --weapon-x-right: 4px;
+}
+
+.fighter.right .sprite-weapon[data-weapon-id="gloves"] {
+  --weapon-x-right: 2px;
 }
 
 .sprite-weapon::before {

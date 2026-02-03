@@ -705,6 +705,20 @@ function formatStatChange(stat, value) {
   return `${sign}${Math.round(abs)} ${label}`;
 }
 
+function buildRewardKey(reward) {
+  if (!reward) return '';
+  if (reward.type === 'stat') return `stat:${reward.stat}:${reward.value}`;
+  if (reward.type === 'talent') return `talent:${reward.talentId}`;
+  if (reward.type === 'weapon') return `weapon:${reward.weaponId}`;
+  return `${reward.type || 'reward'}`;
+}
+
+function createRunReward(data) {
+  const reward = { ...data };
+  reward.key = reward.key || buildRewardKey(reward);
+  return reward;
+}
+
 function scaleEventValue(stat, base, level, multiplier = 1) {
   const tier = Math.floor((level - 1) / 5);
   const scale = 1 + tier * 0.15;
@@ -1398,12 +1412,14 @@ export function applyEventChoice(choiceId) {
     }
     player.bonusStats[stat] = (player.bonusStats[stat] || 0) + change.value;
     if (change.reward && change.value > 0) {
-      player.runRewards.push({
+      const rewardRarity = change.rarity || resolved.rarity || choice.rarity || 'silver';
+      player.runRewards.push(createRunReward({
         type: 'stat',
         stat,
         value: change.value,
-        label: formatStatLabel(stat, change.value)
-      });
+        label: formatStatLabel(stat, change.value),
+        rarity: rewardRarity
+      }));
     }
   });
 
@@ -1413,11 +1429,12 @@ export function applyEventChoice(choiceId) {
       player.talents.push(talentId);
     }
     const talent = getTalentById(talentId);
-    player.runRewards.push({
+    player.runRewards.push(createRunReward({
       type: 'talent',
       talentId,
-      label: talent ? talent.name : talentId
-    });
+      label: talent ? talent.name : talentId,
+      rarity: talent?.rarity || resolved.rarity || choice.rarity || 'silver'
+    }));
   }
 
   const weaponId = resolved.weaponId || choice.weaponId;
@@ -1427,11 +1444,12 @@ export function applyEventChoice(choiceId) {
     }
     player.weapon = weaponId;
     const weapon = getWeaponById(weaponId);
-    player.runRewards.push({
+    player.runRewards.push(createRunReward({
       type: 'weapon',
       weaponId,
-      label: weapon ? weapon.name : weaponId
-    });
+      label: weapon ? weapon.name : weaponId,
+      rarity: weapon?.rarity || resolved.rarity || choice.rarity || 'silver'
+    }));
   }
 
   if (event.kind === 'shop') {
@@ -1458,6 +1476,11 @@ export function getPendingRewards() {
   return JSON.parse(JSON.stringify(gameState.pendingRewards));
 }
 
+export function getRunRewards() {
+  ensureState();
+  return JSON.parse(JSON.stringify(gameState.player.runRewards || []));
+}
+
 export function applyRewardChoice(choiceId) {
   ensureState();
   if (!gameState.pendingRewards.length) return null;
@@ -1468,31 +1491,36 @@ export function applyRewardChoice(choiceId) {
 
   if (choice.type === 'stat') {
     gameState.player.bonusStats[choice.stat] += choice.value;
-    gameState.player.runRewards.push({
+    gameState.player.runRewards.push(createRunReward({
       type: 'stat',
       stat: choice.stat,
       value: choice.value,
-      label: choice.label
-    });
+      label: choice.label,
+      rarity: choice.rarity || 'silver'
+    }));
   } else if (choice.type === 'talent') {
     if (!gameState.player.talents.includes(choice.talentId)) {
       gameState.player.talents.push(choice.talentId);
     }
-    gameState.player.runRewards.push({
+    const talent = getTalentById(choice.talentId);
+    gameState.player.runRewards.push(createRunReward({
       type: 'talent',
       talentId: choice.talentId,
-      label: choice.label
-    });
+      label: choice.label,
+      rarity: talent?.rarity || choice.rarity || 'silver'
+    }));
   } else if (choice.type === 'weapon') {
     if (!gameState.player.weapons.includes(choice.weaponId)) {
       gameState.player.weapons.push(choice.weaponId);
     }
     gameState.player.weapon = choice.weaponId;
-    gameState.player.runRewards.push({
+    const weapon = getWeaponById(choice.weaponId);
+    gameState.player.runRewards.push(createRunReward({
       type: 'weapon',
       weaponId: choice.weaponId,
-      label: choice.label
-    });
+      label: choice.label,
+      rarity: weapon?.rarity || choice.rarity || 'silver'
+    }));
   }
 
   gameState.pendingRewards.shift();
@@ -1533,7 +1561,7 @@ export function markBossDefeated(level) {
   saveState();
 }
 
-export function cashOutRun() {
+export function cashOutRun(pickKey = null) {
   ensureState();
   const player = gameState.player;
   const rewards = Array.isArray(player.runRewards) ? player.runRewards : [];
@@ -1545,7 +1573,18 @@ export function cashOutRun() {
     return null;
   }
 
-  const pick = rewards[Math.floor(Math.random() * rewards.length)];
+  const normalized = rewards.map(reward => (reward.key ? reward : { ...reward, key: buildRewardKey(reward) }));
+  let pick = null;
+  if (pickKey !== null && pickKey !== undefined) {
+    if (typeof pickKey === 'number') {
+      pick = normalized[pickKey];
+    } else {
+      pick = normalized.find(reward => reward.key === pickKey);
+    }
+  }
+  if (!pick) {
+    pick = normalized[Math.floor(Math.random() * normalized.length)];
+  }
   if (pick.type === 'stat') {
     player.permanent.bonusStats[pick.stat] += pick.value;
   } else if (pick.type === 'talent') {
