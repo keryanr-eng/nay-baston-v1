@@ -1217,15 +1217,23 @@ input[type="text"] {
   --metal-1: #f0e2b6;
   --metal-2: #bba36b;
   --glow: rgba(255, 225, 160, 0.5);
+  --weapon-rot: -12deg;
+  --weapon-flip: 1;
   background: linear-gradient(90deg, var(--metal-1), var(--metal-2));
   box-shadow: 0 0 12px var(--glow);
-  transform: rotate(-12deg);
+  transform: rotate(var(--weapon-rot)) scaleX(var(--weapon-flip));
+  transform-origin: center;
 }
 
 .fighter-sprite[data-profile="hero"] .sprite-weapon {
   left: 60%;
   bottom: calc(76px * var(--bulk));
-  transform: rotate(-6deg);
+  --weapon-rot: -6deg;
+}
+
+.fighter.right .sprite-weapon {
+  left: 44%;
+  --weapon-flip: -1;
 }
 
 .sprite-weapon::before {
@@ -1287,7 +1295,7 @@ input[type="text"] {
   width: 22px;
   height: 10px;
   border-radius: 6px;
-  transform: rotate(-4deg);
+  --weapon-rot: -4deg;
   background: linear-gradient(90deg, #b88862, #8a5c38);
   box-shadow: 0 0 6px rgba(0, 0, 0, 0.3);
 }
@@ -1308,14 +1316,14 @@ input[type="text"] {
 .sprite-weapon[data-weapon-id="dagger"] {
   width: 30px;
   height: 4px;
-  transform: rotate(-8deg);
+  --weapon-rot: -8deg;
 }
 
 .sprite-weapon[data-weapon-id="sword"] {
   width: 58px;
   height: 6px;
   border-radius: 2px 999px 999px 2px;
-  transform: rotate(-10deg);
+  --weapon-rot: -10deg;
 }
 
 .sprite-weapon[data-weapon-id="dagger"]::after {
@@ -1349,7 +1357,7 @@ input[type="text"] {
 .sprite-weapon[data-weapon-id="spear"] {
   width: 72px;
   height: 4px;
-  transform: rotate(-6deg);
+  --weapon-rot: -6deg;
   background: linear-gradient(90deg, #7a5a33, #4d341b);
   box-shadow: 0 0 6px rgba(0, 0, 0, 0.35);
 }
@@ -1365,7 +1373,7 @@ input[type="text"] {
 .sprite-weapon[data-weapon-id="axe"] {
   width: 34px;
   height: 8px;
-  transform: rotate(-12deg);
+  --weapon-rot: -12deg;
   background: linear-gradient(90deg, #7a5a33, #4d341b);
   box-shadow: 0 0 6px rgba(0, 0, 0, 0.35);
 }
@@ -1386,7 +1394,7 @@ input[type="text"] {
   width: 30px;
   height: 30px;
   border-radius: 50%;
-  transform: rotate(0deg);
+  --weapon-rot: 0deg;
   background: radial-gradient(circle at 30% 30%, var(--metal-1), var(--metal-2));
   box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.35), 0 0 10px var(--glow);
 }
@@ -1411,7 +1419,7 @@ input[type="text"] {
   width: 26px;
   height: 8px;
   border-radius: 8px;
-  transform: rotate(-4deg);
+  --weapon-rot: -4deg;
 }
 
 .sprite-weapon[data-weapon-id="gloves"]::before {
