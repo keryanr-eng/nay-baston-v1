@@ -25,6 +25,8 @@ import { setHPBar, updateCombatLog, renderFightScreen, renderPostFightButtons, r
 const TICK_SECONDS = 0.1;
 const MAX_FIGHT_SECONDS = 60;
 const ACTION_DELAY_MS = 700;
+const WEAPON_HOLD_ACTIONS = 2;
+const WEAPON_SWAP_DELAY_MS = 220;
 
 function describeTalent(id) {
   const talent = getTalentById(id);
@@ -41,6 +43,8 @@ function createCombatant(profile, weaponPool = null) {
     weaponPool: Array.isArray(weaponPool) ? weaponPool.slice() : null,
     baseStats: { ...profile.stats },
     currentWeapon: profile.weapon || fallbackWeapon,
+    weaponHold: 0,
+    weaponSwapped: false,
     maxHp: profile.stats.hp,
     hp: profile.stats.hp,
     atk: profile.stats.atk,
@@ -55,11 +59,32 @@ function createCombatant(profile, weaponPool = null) {
 }
 
 function pickWeaponForAttack(attacker) {
-  if (Array.isArray(attacker.weaponPool) && attacker.weaponPool.length) {
-    const pick = attacker.weaponPool[Math.floor(Math.random() * attacker.weaponPool.length)];
-    return pick || getDefaultWeapon();
+  const pool = Array.isArray(attacker.weaponPool) ? attacker.weaponPool : null;
+  if (!pool || !pool.length) {
+    attacker.weaponSwapped = false;
+    return attacker.currentWeapon || attacker.weapon || getDefaultWeapon();
   }
-  return attacker.weapon || getDefaultWeapon();
+  if (pool.length === 1) {
+    const only = pool[0] || getDefaultWeapon();
+    const prevId = attacker.currentWeapon?.id || getDefaultWeapon().id;
+    const nextId = only?.id || getDefaultWeapon().id;
+    attacker.weaponSwapped = prevId !== nextId;
+    attacker.currentWeapon = only;
+    attacker.weaponHold = WEAPON_HOLD_ACTIONS;
+    return only;
+  }
+  if (attacker.weaponHold > 0 && attacker.currentWeapon) {
+    attacker.weaponHold -= 1;
+    attacker.weaponSwapped = false;
+    return attacker.currentWeapon;
+  }
+  const pick = pool[Math.floor(Math.random() * pool.length)] || getDefaultWeapon();
+  const prevId = attacker.currentWeapon?.id || getDefaultWeapon().id;
+  const nextId = pick?.id || getDefaultWeapon().id;
+  attacker.weaponSwapped = prevId !== nextId;
+  attacker.currentWeapon = pick;
+  attacker.weaponHold = WEAPON_HOLD_ACTIONS + (Math.random() < 0.35 ? 1 : 0);
+  return pick;
 }
 
 function getAttackStats(attacker, weapon) {
@@ -382,6 +407,7 @@ export async function startCombat() {
           if (result.reflect) playCombatFx('B', 'thorns', result.reflect);
         }
       }
+      const acted = actor;
       actor = selectActor(player, enemy);
 
       const cappedPlayerHp = Math.max(0, Math.round(player.hp));
@@ -389,7 +415,8 @@ export async function startCombat() {
       setHPBar('A', cappedPlayerHp, player.maxHp);
       setHPBar('B', cappedEnemyHp, enemy.maxHp);
       updateCombatLog([...header, '---', ...log.slice(-10)]);
-      await sleep(actionDelay);
+      const swapDelay = acted?.weaponSwapped ? WEAPON_SWAP_DELAY_MS : 0;
+      await sleep(actionDelay + swapDelay);
     }
   }
 

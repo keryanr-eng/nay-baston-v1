@@ -871,8 +871,9 @@ export function updateFighterWeapon(side, weapon) {
   const weaponId = weapon?.id || 'fists';
   const rawRarity = weaponId === 'fists' ? 'none' : (weapon?.rarity || 'common');
   const rarity = rawRarity === 'none' ? 'none' : normalizeRarity(rawRarity);
-  fighter.setAttribute('data-weapon', rarity);
   const spriteWeapon = fighter.querySelector('.sprite-weapon');
+  const prevWeaponId = spriteWeapon?.getAttribute('data-weapon-id');
+  fighter.setAttribute('data-weapon', rarity);
   if (spriteWeapon) {
     spriteWeapon.setAttribute('data-weapon', rarity);
     spriteWeapon.setAttribute('data-weapon-id', weaponId);
@@ -881,13 +882,18 @@ export function updateFighterWeapon(side, weapon) {
   if (spriteArc) {
     spriteArc.setAttribute('data-weapon-id', weaponId);
   }
+  const weaponDef = weaponId === 'fists' ? getDefaultWeapon() : getWeaponById(weaponId);
+  const displayName = weaponDef?.name || 'Poings';
   const weaponLabel = fighter.querySelector('.portrait-weapon');
   if (weaponLabel) {
-    const weaponDef = weaponId === 'fists' ? getDefaultWeapon() : getWeaponById(weaponId);
-    const displayName = weaponDef?.name || 'Poings';
     const labelRarity = rarity === 'none' ? 'common' : rarity;
     weaponLabel.textContent = displayName;
     weaponLabel.className = `portrait-weapon rarity-${labelRarity}`;
+  }
+  if (prevWeaponId && prevWeaponId !== weaponId) {
+    fighter.classList.add('weapon-swap');
+    spawnFxText(side, displayName, 'weapon');
+    setTimeout(() => fighter.classList.remove('weapon-swap'), 260);
   }
 }
 
@@ -993,12 +999,12 @@ export function renderBossChest({ rewards = [], onPick, onContinue }) {
           const relic = reward.type === 'relic' ? getRelicById(reward.relicId) : null;
           const title = reward.label || weapon?.name || talent?.name || relic?.name || 'Bonus';
           const desc = reward.type === 'weapon'
-            ? (weapon?.desc || '')
+            ? `${weapon?.desc || ''}${weapon ? ` | ${weaponStatsText({ id: reward.weaponId, rarity })}` : ''}`
             : reward.type === 'talent'
               ? (getTalentDescription(reward.talentId) || '')
               : reward.type === 'relic'
                 ? (relic?.desc || '')
-                : 'Bonus permanent.';
+                : `Bonus permanent: ${reward.label || ''}`.trim();
           const rarity = normalizeRarity(reward.rarity || weapon?.rarity || talent?.rarity || relic?.rarity || 'common');
           const tip = reward.type === 'weapon'
             ? weaponStatsText({ id: reward.weaponId, rarity })
@@ -1152,10 +1158,13 @@ export function renderEventPanel(eventData, onSelect = null, target = null, play
           const canAfford = cost ? gold >= cost : true;
           const disabledAttr = canAfford ? '' : ' disabled';
           const lockedClass = canAfford ? '' : ' locked';
+          const fullDesc = weapon
+            ? `${option.desc || weapon.desc || ''}${tip ? ` | ${tip}` : ''}`.trim()
+            : (option.desc || '');
           return `
             <button class="reward-card event-card rarity-${rarity}${lockedClass}" data-event-choice="${option.id}"${tipAttr}${disabledAttr}>
               <div class="reward-title">${option.label}</div>
-              <div class="reward-desc">${option.desc || ''}</div>
+              <div class="reward-desc">${fullDesc}</div>
               ${cost ? `<div class="reward-meta">COUT: ${cost} OR</div>` : ''}
             </button>
           `;

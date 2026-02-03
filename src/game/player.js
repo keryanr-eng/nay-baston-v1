@@ -54,12 +54,12 @@ const TALENTS = [
 ];
 
 const WEAPONS = [
-  { id: 'dagger', name: 'Dagger', rarity: 'common', desc: 'Vif et precis.', stats: { atk: 1, spd: 2, crit: 0.03 } },
-  { id: 'sword', name: 'Sword', rarity: 'rare', desc: 'Fiable et tranchante.', stats: { atk: 3 } },
-  { id: 'axe', name: 'Axe', rarity: 'ultimate', desc: 'Lourde, mais devastatrice.', stats: { atk: 4, spd: -1 } },
-  { id: 'shield', name: 'Shield', rarity: 'epic', desc: 'Protection renforcee.', stats: { def: 3, hp: 10, spd: -1 } },
-  { id: 'spear', name: 'Spear', rarity: 'legendary', desc: 'Allonge avantageuse.', stats: { atk: 2, spd: 1, crit: 0.02 } },
-  { id: 'gloves', name: 'Gloves', rarity: 'uncommon', desc: 'Rapide et souple.', stats: { spd: 2, dodge: 0.03 } }
+  { id: 'dagger', name: 'Dagger', rarity: 'common', desc: 'Eclair rapide et tres precis.', stats: { atk: -2, spd: 6, crit: 0.08, precision: 0.08 } },
+  { id: 'sword', name: 'Sword', rarity: 'rare', desc: 'Polyvalente, degats fiables.', stats: { atk: 7, precision: 0.02, crit: 0.02 } },
+  { id: 'axe', name: 'Axe', rarity: 'ultimate', desc: 'Degats monstrueux, lourde et imprecise.', stats: { atk: 12, spd: -4, precision: -0.12, crit: 0.04 } },
+  { id: 'shield', name: 'Shield', rarity: 'epic', desc: 'Mur vivant, tres lent.', stats: { def: 12, hp: 55, spd: -4, atk: -3 } },
+  { id: 'spear', name: 'Spear', rarity: 'legendary', desc: 'Portee, precision et crit.', stats: { atk: 6, spd: 3, crit: 0.05, precision: 0.08 } },
+  { id: 'gloves', name: 'Gloves', rarity: 'uncommon', desc: 'Frappe en rafale, presque sans degats.', stats: { atk: -4, spd: 7, dodge: 0.07, precision: 0.03 } }
 ];
 
 const DEFAULT_WEAPON = {
@@ -804,8 +804,8 @@ function pickEnemyWeapons(level, isBoss) {
 
 function createEnemyProfile(level, isBoss) {
   const base = computeBaseStats(level);
-  const normalScale = 0.78 + (level - 1) * 0.022;
-  const bossScale = isBoss ? (level < 10 ? 1.1 : 1.22) : 1;
+  const normalScale = 0.82 + (level - 1) * 0.026;
+  const bossScale = isBoss ? (level < 10 ? 1.18 : 1.32) : 1;
   const scale = normalScale * bossScale;
   const baseStats = {
     hp: base.hp * scale,
@@ -1051,13 +1051,13 @@ function buildLevelUpOptions(level) {
   const weaponAvailable = WEAPONS.length > 0;
 
   const tier = Math.floor((level - 1) / 5);
-  const bonusChance = Math.min(0.2, tier * 0.04);
-  const rollTalent = level % 2 === 0 && Math.random() < (0.6 + bonusChance) && talentAvailable;
-  const rollWeapon = level % 3 === 0 && Math.random() < (0.55 + bonusChance) && weaponAvailable;
+  const bonusChance = Math.min(0.12, tier * 0.02);
+  const rollTalent = level % 2 === 0 && Math.random() < (0.38 + bonusChance) && talentAvailable;
+  const rollWeapon = level % 3 === 0 && Math.random() < (0.28 + bonusChance) && weaponAvailable;
 
   let choice = 'stat';
   if (rollTalent && rollWeapon) {
-    choice = Math.random() < 0.6 ? 'weapon' : 'talent';
+    choice = Math.random() < 0.5 ? 'weapon' : 'talent';
   } else if (rollTalent) {
     choice = 'talent';
   } else if (rollWeapon) {

@@ -1282,6 +1282,23 @@ input[type="text"] {
   transform-origin: center;
 }
 
+.fighter.weapon-swap .sprite-weapon {
+  animation: weaponSwapPulse 0.28s ease-out;
+  filter: drop-shadow(0 0 12px var(--glow));
+}
+
+@keyframes weaponSwapPulse {
+  0% {
+    transform: rotate(var(--weapon-rot)) scaleX(var(--weapon-flip)) scale(1);
+  }
+  50% {
+    transform: rotate(var(--weapon-rot)) scaleX(var(--weapon-flip)) scale(1.18);
+  }
+  100% {
+    transform: rotate(var(--weapon-rot)) scaleX(var(--weapon-flip)) scale(1);
+  }
+}
+
 .fighter-sprite[data-profile="hero"] .sprite-weapon {
   left: 60%;
   bottom: calc(76px * var(--bulk));
@@ -2081,6 +2098,8 @@ input[type="text"] {
   border: 2px solid transparent;
   background: linear-gradient(160deg, rgba(18, 12, 16, 0.9), rgba(8, 6, 8, 0.95));
   position: relative;
+  text-transform: none;
+  letter-spacing: 0.02em;
 }
 
 .reward-card.selected {
@@ -2127,12 +2146,15 @@ input[type="text"] {
   font-weight: 600;
   font-size: 1.05rem;
   letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
 
 .reward-desc {
-  font-size: 0.85rem;
-  color: var(--muted);
-  margin-top: 0.3rem;
+  font-size: 0.9rem;
+  color: #e6d8c0;
+  margin-top: 0.35rem;
+  line-height: 1.35;
+  text-transform: none;
 }
 
 .reward-meta {
@@ -2141,6 +2163,11 @@ input[type="text"] {
   text-transform: uppercase;
   margin-top: 0.6rem;
   color: rgba(214, 176, 107, 0.75);
+}
+
+.cashout-grid .reward-card {
+  padding: 0.95rem 1rem;
+  min-height: 92px;
 }
 
 .rarity-common {
@@ -2336,6 +2363,13 @@ input[type="text"] {
 .fx-pop.thorns {
   color: #ff9a6b;
   text-shadow: 0 0 14px rgba(255, 154, 107, 0.6);
+}
+
+.fx-pop.weapon {
+  color: #f2d27a;
+  font-size: 1.05rem;
+  letter-spacing: 0.12em;
+  text-shadow: 0 0 16px rgba(242, 210, 122, 0.7);
 }
 
 .fx-dust {
