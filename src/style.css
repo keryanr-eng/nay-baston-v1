@@ -1068,7 +1068,7 @@ input[type="text"] {
 }
 
 .fighter.right .fighter-sprite-wrap {
-  transform: scaleX(-1) scale(var(--sprite-scale, 1));
+  transform: scale(var(--sprite-scale, 1));
 }
 
 .fighter-sprite {
