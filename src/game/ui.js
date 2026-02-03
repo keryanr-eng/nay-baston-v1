@@ -785,9 +785,7 @@ export function renderBossChest({ rewards = [], onPick, onContinue }) {
           const rarity = normalizeRarity(reward.rarity || weapon?.rarity || talent?.rarity || 'common');
           const tip = reward.type === 'weapon'
             ? weaponStatsText(weapon)
-            : reward.type === 'talent'
-              ? (getTalentDescription(reward.talentId) || title)
-              : (reward.label || desc);
+            : '';
           const tipAttr = tip ? ` data-tip="${tip}"` : '';
           return `
             <button class="reward-card rarity-${rarity}" data-reward-key="${reward.key}" data-type="${reward.type}" data-rarity="${rarity}"${tipAttr}>
@@ -976,9 +974,7 @@ export function renderLevelUpChoices(levelEntry, onConfirm) {
           const weapon = option.type === 'weapon' ? getWeaponById(option.weaponId) : null;
           const tip = option.type === 'weapon'
             ? weaponStatsText(weapon)
-            : option.type === 'talent'
-              ? (getTalentDescription(option.talentId) || option.label)
-              : (option.label || option.desc || '');
+            : '';
           const tipAttr = tip ? ` data-tip="${tip}"` : '';
           const rarity = normalizeRarity(option.rarity);
           return `

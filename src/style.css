@@ -1994,35 +1994,27 @@ input[type="text"] {
   left: 50%;
   bottom: calc(100% + 10px);
   transform: translateX(-50%);
-  background: rgba(12, 10, 12, 0.95);
-  color: var(--text);
-  padding: 0.4rem 0.6rem;
-  border-radius: 10px;
-  font-size: 0.75rem;
+  background: transparent;
+  color: #f2e6d0;
+  padding: 0;
+  border-radius: 0;
+  font-size: 0.85rem;
+  font-weight: 600;
   max-width: 260px;
   white-space: normal;
-  text-align: left;
-  line-height: 1.4;
+  text-align: center;
+  line-height: 1.3;
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.15s ease;
-  border: 1px solid rgba(214, 176, 107, 0.25);
-  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.35);
+  border: none;
+  box-shadow: none;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.75);
   z-index: 10;
 }
 
 .reward-card[data-tip]::before {
-  content: '';
-  position: absolute;
-  left: 50%;
-  bottom: calc(100% + 4px);
-  transform: translateX(-50%);
-  border: 6px solid transparent;
-  border-top-color: rgba(12, 10, 12, 0.95);
-  opacity: 0;
-  transition: opacity 0.15s ease;
-  pointer-events: none;
-  z-index: 10;
+  display: none;
 }
 
 .reward-card[data-tip]:hover::after,
