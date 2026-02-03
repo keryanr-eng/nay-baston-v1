@@ -45,6 +45,9 @@ const TALENTS = [
   { id: 'ninja', name: 'Ninja', rarity: 'rare', desc: '+8% DODGE.' },
   { id: 'fast', name: 'Fast', rarity: 'common', desc: '+4 SPD.' },
   { id: 'armor', name: 'Armor', rarity: 'uncommon', desc: '+15% DEF.' },
+  { id: 'bloodlust', name: 'Bloodlust', rarity: 'rare', desc: '+12% ATK.' },
+  { id: 'bulwark', name: 'Bulwark', rarity: 'uncommon', desc: '+8% DEF et +6% PV.' },
+  { id: 'duelist', name: 'Duelist', rarity: 'epic', desc: '+2 SPD et +6% CRIT.' },
   { id: 'lifesteal', name: 'Lifesteal', rarity: 'legendary', desc: 'Recupere 20% des degats infliges.' },
   { id: 'firstblood', name: 'FirstBlood', rarity: 'epic', desc: 'Premier coup +35% degats.' },
   { id: 'lucky', name: 'Lucky', rarity: 'ultimate', desc: '+5% CRIT et +5% DODGE.' }
@@ -103,6 +106,23 @@ const WEAPON_DUPLICATE_RARITY_MULTIPLIERS = {
   legendary: 3.6,
   ultimate: 4.6
 };
+
+const MAX_RELICS = 2;
+const RELICS = [
+  { id: 'emberheart', name: 'Coeur de braise', rarity: 'rare', desc: '+2 ATK, +3% CRIT.', stats: { atk: 2, crit: 0.03 } },
+  { id: 'ironseal', name: 'Sceau de fer', rarity: 'uncommon', desc: '+3 DEF, +10 PV.', stats: { def: 3, hp: 10 } },
+  { id: 'shadowveil', name: 'Voile d ombre', rarity: 'epic', desc: '+2 SPD, +3% DODGE.', stats: { spd: 2, dodge: 0.03 } },
+  { id: 'seer_eye', name: 'Oeil du voyant', rarity: 'rare', desc: '+4% PREC, +2% CRIT.', stats: { precision: 0.04, crit: 0.02 } },
+  { id: 'bloodchalice', name: 'Calice sanguin', rarity: 'legendary', desc: '+4 ATK, +12 PV.', stats: { atk: 4, hp: 12 } },
+  { id: 'starshard', name: 'Eclat astral', rarity: 'ultimate', desc: '+5% CRIT, +5% PREC, +1 SPD.', stats: { crit: 0.05, precision: 0.05, spd: 1 } }
+];
+
+const MAX_RUN_MODIFIERS = 1;
+const RUN_MODIFIERS = [
+  { id: 'wrath', name: 'Serment de colere', rarity: 'epic', desc: '+8% ATK, -6% PV.', mult: { atk: 0.08, hp: -0.06 } },
+  { id: 'iron_skin', name: 'Peau de fer', rarity: 'rare', desc: '+10% DEF, -8% SPD.', mult: { def: 0.1, spd: -0.08 } },
+  { id: 'keen_eye', name: 'Oeil perçant', rarity: 'legendary', desc: '+8% CRIT & PREC, -6% DEF.', mult: { crit: 0.08, precision: 0.08, def: -0.06 } }
+];
 
 const DODGE_CAP = 0.6;
 const RARITY_MULTIPLIERS = {
@@ -265,12 +285,15 @@ function createEmptyPlayer(seed, name = 'Heros') {
     xp: 0,
     gold: 0,
     talents: [],
+    relics: [],
+    runModifiers: [],
     weapon: null,
     weapons: [],
     bonusStats: { ...EMPTY_BONUS_STATS },
     permanent: {
       talents: [],
       weapons: [],
+      relics: [],
       bonusStats: { ...EMPTY_BONUS_STATS }
     },
     runRewards: [],
@@ -310,6 +333,7 @@ function normalizeState(saved) {
     : [];
   const permanentWeapons = permanentWeaponsRaw.map(normalizeWeaponEntry).filter(Boolean);
   const permanentTalents = Array.isArray(permanent.talents) ? permanent.talents : [];
+  const permanentRelics = Array.isArray(permanent.relics) ? permanent.relics : [];
   const permanentBonusStats = {
     hp: permanent.bonusStats?.hp || 0,
     atk: permanent.bonusStats?.atk || 0,
@@ -332,6 +356,8 @@ function normalizeState(saved) {
       xp: Math.max(0, player.xp || 0),
       gold: Math.max(0, player.gold || 0),
       talents: Array.isArray(player.talents) ? player.talents : [],
+      relics: Array.isArray(player.relics) ? player.relics : [],
+      runModifiers: Array.isArray(player.runModifiers) ? player.runModifiers : [],
       weapon: weaponFallback,
       weapons: runWeapons,
       bonusStats: {
@@ -346,6 +372,7 @@ function normalizeState(saved) {
       permanent: {
         talents: permanentTalents,
         weapons: permanentWeapons,
+        relics: permanentRelics,
         bonusStats: permanentBonusStats
       },
       runRewards: Array.isArray(player.runRewards) ? player.runRewards : [],
@@ -374,6 +401,18 @@ export function getTalentsCatalog() {
 
 export function getWeaponsCatalog() {
   return WEAPONS.map(w => ({ ...w, stats: { ...w.stats } }));
+}
+
+export function getRelicsCatalog() {
+  return RELICS.map(r => ({ ...r, stats: { ...r.stats } }));
+}
+
+export function getRelicById(id) {
+  return RELICS.find(r => r.id === id) || null;
+}
+
+export function getModifierById(id) {
+  return RUN_MODIFIERS.find(mod => mod.id === id) || null;
 }
 
 export function getSettings() {
@@ -499,6 +538,15 @@ export function applyTalentPassives(stats, talentIds) {
   if (talentIds.includes('precision')) merged.precision += getTalentScaledValue('precision', 0.08);
   if (talentIds.includes('focus')) merged.crit += getTalentScaledValue('focus', 0.08);
   if (talentIds.includes('ninja')) merged.dodge += getTalentScaledValue('ninja', 0.08);
+  if (talentIds.includes('bloodlust')) merged.atk *= 1 + getTalentScaledValue('bloodlust', 0.12);
+  if (talentIds.includes('bulwark')) {
+    merged.def *= 1 + getTalentScaledValue('bulwark', 0.08);
+    merged.hp *= 1 + getTalentScaledValue('bulwark', 0.06);
+  }
+  if (talentIds.includes('duelist')) {
+    merged.spd += Math.max(1, Math.round(getTalentScaledValue('duelist', 2)));
+    merged.crit += getTalentScaledValue('duelist', 0.06);
+  }
   if (talentIds.includes('lucky')) {
     merged.crit += getTalentScaledValue('lucky', 0.05);
     merged.dodge += getTalentScaledValue('lucky', 0.05);
@@ -508,10 +556,87 @@ export function applyTalentPassives(stats, talentIds) {
   return merged;
 }
 
+function getRelicEffectiveStats(relic) {
+  if (!relic || !relic.stats) return { ...EMPTY_BONUS_STATS };
+  const mult = getRarityMultiplier(relic.rarity);
+  const scaled = { ...EMPTY_BONUS_STATS };
+  Object.keys(relic.stats).forEach(key => {
+    const value = relic.stats[key];
+    if (!value) return;
+    if (key === 'crit' || key === 'dodge' || key === 'precision') {
+      scaled[key] = scalePercent(value, mult);
+    } else {
+      scaled[key] = Math.round(value * mult);
+    }
+  });
+  return scaled;
+}
+
+export function applyRelicPassives(stats, relicIds = []) {
+  let merged = { ...stats };
+  relicIds.forEach(id => {
+    const relic = getRelicById(id);
+    if (!relic) return;
+    const bonus = getRelicEffectiveStats(relic);
+    Object.keys(bonus).forEach(key => {
+      merged[key] = (merged[key] || 0) + bonus[key];
+    });
+  });
+  return merged;
+}
+
+export function applyRunModifiers(stats, modifierIds = []) {
+  let merged = { ...stats };
+  modifierIds.forEach(id => {
+    const mod = getModifierById(id);
+    if (!mod || !mod.mult) return;
+    Object.keys(mod.mult).forEach(key => {
+      const value = mod.mult[key];
+      if (value === 0 || value === null || value === undefined) return;
+      merged[key] = (merged[key] || 0) * (1 + value);
+    });
+  });
+  return merged;
+}
+
+export function applySynergyPassives(stats, talentIds = []) {
+  let merged = { ...stats };
+  const has = id => talentIds.includes(id);
+  if (has('tank') && has('armor')) {
+    merged.def *= 1.08;
+    merged.hp *= 1.06;
+  }
+  if (has('ninja') && has('fast')) {
+    merged.spd += 1;
+    merged.dodge += 0.02;
+  }
+  if (has('precision') && has('focus')) {
+    merged.precision += 0.03;
+    merged.crit += 0.03;
+  }
+  if (has('berserk') && has('lifesteal')) {
+    merged.atk *= 1.06;
+  }
+  if (has('thorns') && has('tank')) {
+    merged.def *= 1.04;
+  }
+  return merged;
+}
+
 function getCombinedTalents(player) {
   const runTalents = Array.isArray(player.talents) ? player.talents : [];
   const permTalents = Array.isArray(player.permanent?.talents) ? player.permanent.talents : [];
   return Array.from(new Set([...permTalents, ...runTalents]));
+}
+
+function getCombinedRelics(player) {
+  const runRelics = Array.isArray(player.relics) ? player.relics : [];
+  const permRelics = Array.isArray(player.permanent?.relics) ? player.permanent.relics : [];
+  return Array.from(new Set([...permRelics, ...runRelics]));
+}
+
+function getRunModifiersList(player) {
+  return Array.isArray(player.runModifiers) ? player.runModifiers : [];
 }
 
 function getCombinedWeapons(player) {
@@ -535,11 +660,15 @@ function getCombinedBonusStats(player) {
 function computeMaxPotentialDodge(player) {
   const combinedBonus = getCombinedBonusStats(player);
   const baseStats = computeBaseStats(player.level, combinedBonus);
+  const relics = getCombinedRelics(player);
+  const modifiers = getRunModifiersList(player);
   const talents = getCombinedTalents(player);
-  const withTalents = applyTalentPassives(baseStats, talents);
+  let withTalents = applyTalentPassives(baseStats, talents);
+  withTalents = applySynergyPassives(withTalents, talents);
+  withTalents = applyRelicPassives(withTalents, relics);
   const weaponList = getCombinedWeapons(player);
   const list = weaponList.length ? weaponList : [{ id: DEFAULT_WEAPON.id, rarity: DEFAULT_WEAPON.rarity }];
-  return Math.max(...list.map(weapon => applyWeaponStats(withTalents, weapon).dodge));
+  return Math.max(...list.map(weapon => applyRunModifiers(applyWeaponStats(withTalents, weapon), modifiers).dodge));
 }
 
 function computeWeaponCollectionBonus(player) {
@@ -573,22 +702,30 @@ export function getPlayerCombatProfile(weaponOverride = null) {
   const weaponInstance = resolveWeaponInstance(player, weaponOverride ?? player.weapon);
   const bonusStats = getCombinedBonusStats(player);
   const base = computeBaseStats(player.level, bonusStats);
-  const withWeapon = applyWeaponStats(base, weaponInstance);
-  const withTalents = applyTalentPassives(withWeapon, getCombinedTalents(player));
+  const talents = getCombinedTalents(player);
+  const relics = getCombinedRelics(player);
+  const modifiers = getRunModifiersList(player);
+  let merged = applyWeaponStats(base, weaponInstance);
+  merged = applyRelicPassives(merged, relics);
+  merged = applyTalentPassives(merged, talents);
+  merged = applySynergyPassives(merged, talents);
+  merged = applyRunModifiers(merged, modifiers);
   return {
     name: player.name,
     level: player.level,
     seed: player.seed,
-    talents: getCombinedTalents(player),
+    talents,
+    relics,
+    modifiers,
     weapon: weaponInstance?.id || null,
     stats: {
-      hp: Math.round(withTalents.hp),
-      atk: Math.round(withTalents.atk),
-      def: Math.round(withTalents.def),
-      spd: Math.round(withTalents.spd),
-      crit: Math.min(0.95, withTalents.crit),
-      dodge: Math.min(DODGE_CAP, withTalents.dodge),
-      precision: Math.min(0.95, withTalents.precision)
+      hp: Math.round(merged.hp),
+      atk: Math.round(merged.atk),
+      def: Math.round(merged.def),
+      spd: Math.round(merged.spd),
+      crit: Math.min(0.95, merged.crit),
+      dodge: Math.min(DODGE_CAP, merged.dodge),
+      precision: Math.min(0.95, merged.precision)
     }
   };
 }
@@ -604,6 +741,16 @@ export function getRandomOwnedWeaponId() {
 export function getOwnedWeapons() {
   ensureState();
   return getCombinedWeapons(gameState.player);
+}
+
+export function getOwnedRelics() {
+  ensureState();
+  return getCombinedRelics(gameState.player);
+}
+
+export function getRunModifiers() {
+  ensureState();
+  return getRunModifiersList(gameState.player);
 }
 
 export function getOwnedTalents() {
@@ -773,7 +920,7 @@ function addEventHistory(entry) {
   });
 }
 
-function buildEventOutcomeSummary(statChanges, talentId, weaponId, cost) {
+function buildEventOutcomeSummary(statChanges, talentId, weaponId, relicId, modifierId, cost) {
   const parts = [];
   if (Array.isArray(statChanges) && statChanges.length) {
     parts.push(buildEventDesc(statChanges));
@@ -785,6 +932,14 @@ function buildEventOutcomeSummary(statChanges, talentId, weaponId, cost) {
   if (weaponId) {
     const weapon = getWeaponById(weaponId);
     parts.push(`Arme: ${weapon ? weapon.name : weaponId}`);
+  }
+  if (relicId) {
+    const relic = getRelicById(relicId);
+    parts.push(`Relique: ${relic ? relic.name : relicId}`);
+  }
+  if (modifierId) {
+    const modifier = getModifierById(modifierId);
+    parts.push(`Serment: ${modifier ? modifier.name : modifierId}`);
   }
   if (cost) {
     parts.push(`Or -${cost}`);
@@ -967,6 +1122,7 @@ function buildRewardKey(reward) {
   if (reward.type === 'stat') return `stat:${reward.stat}:${reward.value}`;
   if (reward.type === 'talent') return `talent:${reward.talentId}`;
   if (reward.type === 'weapon') return `weapon:${reward.weaponId}`;
+  if (reward.type === 'relic') return `relic:${reward.relicId}`;
   return `${reward.type || 'reward'}`;
 }
 
@@ -1499,6 +1655,116 @@ function buildRiskEvent(level, player) {
   };
 }
 
+function buildRelicEvent(level, player) {
+  const owned = getCombinedRelics(player);
+  if (owned.length >= MAX_RELICS) return null;
+  const available = RELICS.filter(r => !owned.includes(r.id));
+  if (!available.length) return null;
+  const picks = [];
+  const pool = available.slice();
+  while (picks.length < Math.min(3, pool.length)) {
+    const idx = Math.floor(Math.random() * pool.length);
+    picks.push(pool.splice(idx, 1)[0]);
+  }
+  return {
+    id: 'event-relic',
+    kind: 'relic',
+    title: 'Reliquaire scelle',
+    text: 'Des reliques oubliées attendent un nouveau porteur.',
+    options: [
+      ...picks.map(relic => ({
+        id: `relic-${relic.id}`,
+        label: relic.name,
+        rarity: relic.rarity,
+        relicId: relic.id,
+        desc: relic.desc
+      })),
+      {
+        id: 'relic-leave',
+        label: 'Refuser',
+        rarity: 'common',
+        statChanges: [],
+        desc: 'Aucun effet.'
+      }
+    ]
+  };
+}
+
+function buildOmenEvent(level, player) {
+  const current = Array.isArray(player.runModifiers) ? player.runModifiers : [];
+  if (current.length >= MAX_RUN_MODIFIERS) return null;
+  return {
+    id: 'event-omen',
+    kind: 'omen',
+    title: 'Serment du voile',
+    text: 'Une voix propose un pacte : puissance contre sacrifice.',
+    options: [
+      ...RUN_MODIFIERS.map(mod => ({
+        id: `omen-${mod.id}`,
+        label: mod.name,
+        rarity: mod.rarity,
+        modifierId: mod.id,
+        desc: mod.desc
+      })),
+      {
+        id: 'omen-leave',
+        label: 'Refuser',
+        rarity: 'common',
+        statChanges: [],
+        desc: 'Aucun effet.'
+      }
+    ]
+  };
+}
+
+function buildRiftEvent(level, player) {
+  const dodgeCapReached = computeMaxPotentialDodge(player) >= DODGE_CAP;
+  const atkGain = scaleEventValue('atk', 4, level, 1.2);
+  const critGain = scaleEventValue('crit', 0.012, level, 1.2);
+  const defLoss = scaleEventValue('def', 2, level, 1);
+  const hpGain = scaleEventValue('hp', 14, level, 1.1);
+  const spdLoss = scaleEventValue('spd', 2, level, 1);
+  const pactPower = normalizeStatChanges([
+    { stat: 'atk', value: atkGain },
+    { stat: 'crit', value: critGain },
+    { stat: 'def', value: -defLoss, reward: false }
+  ], dodgeCapReached);
+  const pactGuard = normalizeStatChanges([
+    { stat: 'hp', value: hpGain },
+    { stat: 'def', value: defLoss },
+    { stat: 'spd', value: -spdLoss, reward: false }
+  ], dodgeCapReached);
+  return {
+    id: 'event-rift',
+    kind: 'rift',
+    title: 'Fissure ardente',
+    text: 'Un portail rougeoyant s ouvre devant toi.',
+    options: [
+      {
+        id: 'rift-power',
+        label: 'Absorber la faille',
+        rarity: 'epic',
+        statChanges: pactPower,
+        desc: buildEventDesc(pactPower)
+      },
+      {
+        id: 'rift-guard',
+        label: 'Sceller la faille',
+        rarity: 'rare',
+        statChanges: pactGuard,
+        desc: buildEventDesc(pactGuard)
+      },
+      {
+        id: 'rift-leave',
+        label: 'Ignorer',
+        rarity: 'common',
+        statChanges: [],
+        desc: 'Aucun effet.'
+      }
+    ]
+  };
+}
+
 function buildShopEvent(level, player) {
   const ownedTalents = getCombinedTalents(player);
   const options = [];
@@ -1616,6 +1882,8 @@ function buildCurseEvent(level, player) {
 
 function buildRandomEvent(level, player) {
   const pool = [
+    buildRelicEvent,
+    buildOmenEvent,
     buildBloodAltarEvent,
     buildForgeEvent,
     buildScrollEvent,
@@ -1623,10 +1891,15 @@ function buildRandomEvent(level, player) {
     buildShopEvent,
     buildCurseEvent,
     buildMerchantEvent,
-    buildRiskEvent
+    buildRiskEvent,
+    buildRiftEvent
   ];
-  const pick = pool[Math.floor(Math.random() * pool.length)];
-  return pick(level, player);
+  for (let i = 0; i < 6; i++) {
+    const pick = pool[Math.floor(Math.random() * pool.length)];
+    const event = pick(level, player);
+    if (event) return event;
+  }
+  return buildTrainingEvent(level, player);
 }
 
 function shouldTriggerEvent(level) {
@@ -1647,6 +1920,14 @@ export function maybeCreateEvent(level, isBoss = false) {
   }
   if (isBoss) return null;
   const currentLevel = typeof level === 'number' && level > 0 ? level : gameState.player.level;
+  if (currentLevel === 1 && !(gameState.player.runModifiers || []).length) {
+    const omen = buildOmenEvent(currentLevel, gameState.player);
+    if (omen) {
+      gameState.pendingEvent = omen;
+      saveState();
+      return JSON.parse(JSON.stringify(omen));
+    }
+  }
   if (!shouldTriggerEvent(currentLevel)) return null;
   const event = buildRandomEvent(currentLevel, gameState.player);
   gameState.pendingEvent = event;
@@ -1719,7 +2000,28 @@ export function applyEventChoice(choiceId) {
     }));
   }
 
-  const summary = buildEventOutcomeSummary(appliedChanges, talentId, weaponId, cost);
+  const relicId = resolved.relicId || choice.relicId;
+  if (relicId) {
+    if (!player.relics.includes(relicId) && player.relics.length < MAX_RELICS) {
+      player.relics.push(relicId);
+    }
+    const relic = getRelicById(relicId);
+    player.runRewards.push(createRunReward({
+      type: 'relic',
+      relicId,
+      label: relic ? relic.name : relicId,
+      rarity: normalizeRarity(relic?.rarity || resolved.rarity || choice.rarity || 'common')
+    }));
+  }
+
+  const modifierId = resolved.modifierId || choice.modifierId;
+  if (modifierId) {
+    if (!player.runModifiers.includes(modifierId)) {
+      player.runModifiers = [modifierId];
+    }
+  }
+
+  const summary = buildEventOutcomeSummary(appliedChanges, talentId, weaponId, relicId, modifierId, cost);
   addEventHistory({
     title: eventTitle,
     choice: choice.label || '',
@@ -1831,6 +2133,25 @@ export function applyRewardChoice(choiceId) {
       desc: weapon?.desc || '',
       rarity: rewardRarity
     });
+  } else if (choice.type === 'relic') {
+    if (!gameState.player.relics.includes(choice.relicId) && gameState.player.relics.length < MAX_RELICS) {
+      gameState.player.relics.push(choice.relicId);
+    }
+    const relic = getRelicById(choice.relicId);
+    const rewardRarity = normalizeRarity(relic?.rarity || choice.rarity || 'common');
+    gameState.player.runRewards.push(createRunReward({
+      type: 'relic',
+      relicId: choice.relicId,
+      label: relic ? relic.name : choice.label,
+      rarity: rewardRarity
+    }));
+    addRewardHistory({
+      source: `Niveau ${gameState.player.level}`,
+      rewardType: 'relic',
+      label: relic ? relic.name : choice.label,
+      desc: relic?.desc || '',
+      rarity: rewardRarity
+    });
   }
 
   gameState.pendingRewards.shift();
@@ -1854,6 +2175,8 @@ function resetRunState(player, options = {}) {
   player.xp = 0;
   player.gold = 0;
   player.talents = [];
+  player.relics = [];
+  player.runModifiers = [];
   player.weapons = [];
   player.weapon = null;
   player.bonusStats = { ...EMPTY_BONUS_STATS };
@@ -1903,6 +2226,10 @@ export function cashOutRun(pickKey = null) {
     if (!player.permanent.talents.includes(pick.talentId)) {
       player.permanent.talents.push(pick.talentId);
     }
+  } else if (pick.type === 'relic') {
+    if (!player.permanent.relics.includes(pick.relicId)) {
+      player.permanent.relics.push(pick.relicId);
+    }
   } else if (pick.type === 'weapon') {
     const rarity = normalizeRarity(pick.rarity || 'common');
     player.permanent.weapons.push({ id: pick.weaponId, rarity });
@@ -1922,6 +2249,7 @@ export function resetAfterDeath(options = {}) {
   player.permanent = {
     talents: [],
     weapons: [],
+    relics: [],
     bonusStats: { ...EMPTY_BONUS_STATS }
   };
   resetRunState(player, { promptName: !skipNamePrompt });
@@ -1994,6 +2322,12 @@ export function getTalentDescription(id) {
       return `+${Math.max(1, Math.round(4 * mult))} SPD.`;
     case 'armor':
       return `+${pct(0.15 * mult)} DEF.`;
+    case 'bloodlust':
+      return `+${pct(0.12 * mult)} ATK.`;
+    case 'bulwark':
+      return `+${pct(0.08 * mult)} DEF et +${pct(0.06 * mult)} PV.`;
+    case 'duelist':
+      return `+${Math.max(1, Math.round(2 * mult))} SPD et +${pct(0.06 * mult)} CRIT.`;
     case 'lifesteal':
       return `Recupere ${pct(0.2 * mult)} des degats infliges.`;
     case 'firstblood':

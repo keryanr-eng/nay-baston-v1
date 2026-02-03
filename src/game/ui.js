@@ -1,4 +1,4 @@
-import { getPlayerState, getPlayerCombatProfile, getSettings, updateSettings, getTalentById, getTalentDescription, getWeaponById, getWeaponEffectiveStats, xpToNext, getPendingRewards, getPendingEvent, getOwnedWeapons, getOwnedTalents, getNextEnemyPreview, getDefaultWeapon, computeBaseStats, applyWeaponStats, applyTalentPassives, getOwnedBonusStats, getWeaponCollectionBonus, applyEventChoice } from './player.js';
+import { getPlayerState, getPlayerCombatProfile, getSettings, updateSettings, getTalentById, getTalentDescription, getWeaponById, getWeaponEffectiveStats, xpToNext, getPendingRewards, getPendingEvent, getOwnedWeapons, getOwnedTalents, getOwnedRelics, getRunModifiers, getRelicById, getModifierById, getNextEnemyPreview, getDefaultWeapon, computeBaseStats, applyWeaponStats, applyTalentPassives, applyRelicPassives, applyRunModifiers, applySynergyPassives, getOwnedBonusStats, getWeaponCollectionBonus, applyEventChoice } from './player.js';
 
 const FX_TIMERS = {
   A: {},
@@ -17,7 +17,10 @@ const EVENT_ICON_TEXT = {
   merchant: 'SHOP',
   shop: 'SHOP',
   curse: 'CUR',
-  risk: 'RISK'
+  risk: 'RISK',
+  relic: 'REL',
+  omen: 'OMN',
+  rift: 'RIFT'
 };
 
 const LEGACY_RARITY_MAP = {
@@ -151,6 +154,7 @@ function rewardKeyFrom(reward) {
   if (reward.type === 'stat') return `stat:${reward.stat}:${reward.value}`;
   if (reward.type === 'talent') return `talent:${reward.talentId}`;
   if (reward.type === 'weapon') return `weapon:${reward.weaponId}`;
+  if (reward.type === 'relic') return `relic:${reward.relicId}`;
   return `${reward.type || 'reward'}`;
 }
 
@@ -375,13 +379,18 @@ export function renderMainScreen() {
   });
   const ownedTalents = getOwnedTalents();
   const combinedTalents = ownedTalents;
+  const ownedRelics = getOwnedRelics();
+  const runModifiers = getRunModifiers();
   const combinedBonus = getOwnedBonusStats();
   const weaponCollection = getWeaponCollectionBonus();
   const baseStats = computeBaseStats(player.level, combinedBonus);
   const powerSamples = weaponPool.map(weaponEntry => {
-    const withWeapon = applyWeaponStats(baseStats, weaponEntry);
-    const withTalents = applyTalentPassives(withWeapon, combinedTalents);
-    return computePowerScore(withTalents, combinedTalents);
+    let merged = applyWeaponStats(baseStats, weaponEntry);
+    merged = applyRelicPassives(merged, ownedRelics);
+    merged = applyTalentPassives(merged, combinedTalents);
+    merged = applySynergyPassives(merged, combinedTalents);
+    merged = applyRunModifiers(merged, runModifiers);
+    return computePowerScore(merged, combinedTalents);
   });
   const playerPower = Math.round(powerSamples.reduce((sum, value) => sum + value, 0) / powerSamples.length);
   const talents = ownedTalents.length
@@ -391,6 +400,22 @@ export function renderMainScreen() {
         return `<li><strong>${t ? t.name : id}</strong> <span class="muted">${desc}</span></li>`;
       }).join('')
     : '<li class="muted">Aucun pour le moment.</li>';
+
+  const relics = ownedRelics.length
+    ? ownedRelics.map(id => {
+        const r = getRelicById(id);
+        const rarity = r?.rarity ? `rarity-text-${normalizeRarity(r.rarity)}` : '';
+        return `<li><strong class="${rarity}">${r ? r.name : id}</strong> <span class="muted">${r?.desc || ''}</span></li>`;
+      }).join('')
+    : '<li class="muted">Aucune relique.</li>';
+
+  const modifiers = runModifiers.length
+    ? runModifiers.map(id => {
+        const mod = getModifierById(id);
+        const rarity = mod?.rarity ? `rarity-text-${normalizeRarity(mod.rarity)}` : '';
+        return `<li><strong class="${rarity}">${mod ? mod.name : id}</strong> <span class="muted">${mod?.desc || ''}</span></li>`;
+      }).join('')
+    : '<li class="muted">Aucun serment.</li>';
 
   const collectionTotalLine = formatBonusStats(weaponCollection.stats);
   const collectionPerWeaponLine = formatBonusStats(weaponCollection.perWeapon);
@@ -407,12 +432,20 @@ export function renderMainScreen() {
         if (item.type === 'reward') {
           const label = item.label || 'Bonus';
           const source = item.source ? `${item.source} - ` : '';
-          const typeLabel = item.rewardType === 'weapon' ? 'arme' : item.rewardType === 'talent' ? 'talent' : 'bonus';
+          const typeLabel = item.rewardType === 'weapon'
+            ? 'arme'
+            : item.rewardType === 'talent'
+              ? 'talent'
+              : item.rewardType === 'relic'
+                ? 'relique'
+                : 'bonus';
           const icon = item.rewardType === 'weapon'
             ? '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 3l7 7-2.5 2.5-7-7L14 3z"/><path d="M9.5 8.5l-5 5"/><path d="M4.5 13.5L3 18l4.5-1.5"/></svg>'
             : item.rewardType === 'talent'
               ? '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l7 7-7 11-7-11 7-7z"/><path d="M12 7l3 3-3 5-3-5 3-3z"/></svg>'
-              : '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3c2 3 4 4.5 4 7.5 0 3-2 5.5-4 7.5-2-2-4-4.5-4-7.5 0-3 2-4.5 4-7.5z"/><path d="M12 9c1 1.2 1.5 2.1 1.5 3.4 0 1.4-.7 2.5-1.5 3.4-.8-.9-1.5-2-1.5-3.4 0-1.3.5-2.2 1.5-3.4z"/></svg>';
+              : item.rewardType === 'relic'
+                ? '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l5 4 1 6-6 8-6-8 1-6 5-4z"/><path d="M12 7l2 2-2 4-2-4 2-2z"/></svg>'
+                : '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3c2 3 4 4.5 4 7.5 0 3-2 5.5-4 7.5-2-2-4-4.5-4-7.5 0-3 2-4.5 4-7.5z"/><path d="M12 9c1 1.2 1.5 2.1 1.5 3.4 0 1.4-.7 2.5-1.5 3.4-.8-.9-1.5-2-1.5-3.4 0-1.3.5-2.2 1.5-3.4z"/></svg>';
           const rarityClass = item.rarity ? `rarity-text-${normalizeRarity(item.rarity)}` : '';
           const desc = item.desc ? ` <span class="muted">${item.desc}</span>` : '';
           return `<li><span class="badge reward">${typeLabel}</span><span class="history-icon icon-${item.rewardType}">${icon}</span> ${source}<span class="history-label ${rarityClass}">${label}</span>${desc}</li>`;
@@ -491,6 +524,14 @@ export function renderMainScreen() {
         <section class="card">
           <h3>Talents</h3>
           <ul class="list">${talents}</ul>
+        </section>
+        <section class="card">
+          <h3>Reliques</h3>
+          <ul class="list">${relics}</ul>
+        </section>
+        <section class="card">
+          <h3>Serments</h3>
+          <ul class="list">${modifiers}</ul>
         </section>
         <section class="card danger-card">
           <h3>Run</h3>
@@ -572,6 +613,18 @@ export function renderMainScreen() {
                     return `<li>${t ? t.name : id}</li>`;
                   }).join('')
                 : '<li class="muted">Aucun talent</li>'}
+            </ul>
+          </div>
+          <div class="bonus-group">
+            <div class="muted small">Reliques</div>
+            <ul class="list">
+              ${(player.permanent?.relics || []).length
+                ? player.permanent.relics.map(id => {
+                    const r = getRelicById(id);
+                    const rarity = normalizeRarity(r?.rarity || 'common');
+                    return `<li class="rarity-${rarity}">${r ? r.name : id}</li>`;
+                  }).join('')
+                : '<li class="muted">Aucune relique</li>'}
             </ul>
           </div>
           <div class="bonus-group">
@@ -915,6 +968,7 @@ export function renderBossChest({ rewards = [], onPick, onContinue }) {
               <option value="stat">Stat</option>
               <option value="talent">Talent</option>
               <option value="weapon">Arme</option>
+              <option value="relic">Relique</option>
             </select>
           </label>
           <label class="filter">
@@ -933,16 +987,19 @@ export function renderBossChest({ rewards = [], onPick, onContinue }) {
       </div>
       <div class="reward-grid cashout-grid">
         ${choices.map(reward => {
-          const typeLabel = reward.type === 'weapon' ? 'WEAPON' : reward.type === 'talent' ? 'TALENT' : 'STAT';
+          const typeLabel = reward.type === 'weapon' ? 'WEAPON' : reward.type === 'talent' ? 'TALENT' : reward.type === 'relic' ? 'RELIC' : 'STAT';
           const weapon = reward.type === 'weapon' ? getWeaponById(reward.weaponId) : null;
           const talent = reward.type === 'talent' ? getTalentById(reward.talentId) : null;
-          const title = reward.label || weapon?.name || talent?.name || 'Bonus';
+          const relic = reward.type === 'relic' ? getRelicById(reward.relicId) : null;
+          const title = reward.label || weapon?.name || talent?.name || relic?.name || 'Bonus';
           const desc = reward.type === 'weapon'
             ? (weapon?.desc || '')
             : reward.type === 'talent'
               ? (getTalentDescription(reward.talentId) || '')
-              : 'Bonus permanent.';
-          const rarity = normalizeRarity(reward.rarity || weapon?.rarity || talent?.rarity || 'common');
+              : reward.type === 'relic'
+                ? (relic?.desc || '')
+                : 'Bonus permanent.';
+          const rarity = normalizeRarity(reward.rarity || weapon?.rarity || talent?.rarity || relic?.rarity || 'common');
           const tip = reward.type === 'weapon'
             ? weaponStatsText({ id: reward.weaponId, rarity })
             : '';
