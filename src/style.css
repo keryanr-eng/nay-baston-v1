@@ -858,6 +858,24 @@ input[type="text"] {
   display: none;
 }
 
+.portrait-head[data-profile="balanced"],
+.portrait-head[data-profile="tank"],
+.portrait-head[data-profile="speed"],
+.portrait-head[data-profile="glass"] {
+  background-image: url('/ennemy.png');
+  background-size: cover;
+  background-position: center top;
+  background-repeat: no-repeat;
+}
+
+.portrait-head[data-profile="balanced"]::after,
+.portrait-head[data-profile="tank"]::after,
+.portrait-head[data-profile="speed"]::after,
+.portrait-head[data-profile="glass"]::after {
+  content: '';
+  display: none;
+}
+
 .fighter.left.fx-acting .fighter-sprite {
   animation: spriteAttackLeft 0.3s ease;
 }
@@ -1120,6 +1138,23 @@ input[type="text"] {
 }
 
 .fighter-sprite[data-profile="hero"] .sprite-body {
+  display: none;
+}
+
+.fighter-sprite[data-profile="balanced"],
+.fighter-sprite[data-profile="tank"],
+.fighter-sprite[data-profile="speed"],
+.fighter-sprite[data-profile="glass"] {
+  background-image: url('/ennemy.png');
+  background-size: contain;
+  background-position: center bottom;
+  background-repeat: no-repeat;
+}
+
+.fighter-sprite[data-profile="balanced"] .sprite-body,
+.fighter-sprite[data-profile="tank"] .sprite-body,
+.fighter-sprite[data-profile="speed"] .sprite-body,
+.fighter-sprite[data-profile="glass"] .sprite-body {
   display: none;
 }
 
