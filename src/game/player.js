@@ -32,7 +32,8 @@ const EMPTY_BONUS_STATS = {
 
 const DEFAULT_SETTINGS = {
   animSpeed: 1,
-  sound: true
+  sound: true,
+  ambient: false
 };
 
 const TALENTS = [
@@ -195,7 +196,8 @@ function normalizeState(saved) {
     nextEnemy: saved.nextEnemy || null,
     settings: {
       animSpeed: saved.settings?.animSpeed ?? DEFAULT_SETTINGS.animSpeed,
-      sound: saved.settings?.sound ?? DEFAULT_SETTINGS.sound
+      sound: saved.settings?.sound ?? DEFAULT_SETTINGS.sound,
+      ambient: saved.settings?.ambient ?? DEFAULT_SETTINGS.ambient
     }
   };
 }

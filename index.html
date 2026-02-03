@@ -7,14 +7,33 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600&family=Space+Grotesk:wght@400;600&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&family=Crimson+Pro:wght@400;500;600&display=swap"
       rel="stylesheet"
     />
     <link rel="stylesheet" href="src/style.css" />
   </head>
   <body>
     <div id="app">
-      <h1>Nay Baston v1</h1>
+      <header class="brand">
+        <div class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 120 120" role="img">
+            <defs>
+              <linearGradient id="brandGlow" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0" stop-color="#f6e2b6" />
+                <stop offset="1" stop-color="#b63b2a" />
+              </linearGradient>
+            </defs>
+            <circle cx="60" cy="60" r="46" fill="none" stroke="url(#brandGlow)" stroke-width="4" opacity="0.9" />
+            <path d="M60 20 L86 40 L92 72 L60 100 L28 72 L34 40 Z" fill="none" stroke="#f6e2b6" stroke-width="3" />
+            <path d="M60 32 L74 48 L74 72 L60 86 L46 72 L46 48 Z" fill="url(#brandGlow)" opacity="0.6" />
+            <path d="M60 44 L66 54 L60 76 L54 54 Z" fill="#0b0a0c" />
+          </svg>
+        </div>
+        <div class="brand-text">
+          <h1>Nay Baston</h1>
+          <div class="brand-sub">Rogue Arena v1</div>
+        </div>
+      </header>
       <div id="game-ui"></div>
       <div id="combat-log"></div>
     </div>

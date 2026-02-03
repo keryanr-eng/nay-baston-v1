@@ -6,6 +6,8 @@ const FX_TIMERS = {
 };
 let shakeTimer = null;
 let zoomTimer = null;
+let ambientCtx = null;
+let ambientNodes = null;
 
 const EVENT_ICON_TEXT = {
   altar: 'ALT',
@@ -153,6 +155,66 @@ function playEventSound(soundEnabled) {
   }
 }
 
+function startAmbientSound() {
+  if (ambientCtx) return;
+  try {
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    if (!AudioCtx) return;
+    const ctx = new AudioCtx();
+    const master = ctx.createGain();
+    master.gain.value = 0.03;
+
+    const low = ctx.createOscillator();
+    low.type = 'sine';
+    low.frequency.setValueAtTime(55, ctx.currentTime);
+
+    const mid = ctx.createOscillator();
+    mid.type = 'triangle';
+    mid.frequency.setValueAtTime(110, ctx.currentTime);
+
+    const filter = ctx.createBiquadFilter();
+    filter.type = 'lowpass';
+    filter.frequency.setValueAtTime(280, ctx.currentTime);
+    filter.Q.value = 0.7;
+
+    low.connect(filter);
+    mid.connect(filter);
+    filter.connect(master);
+    master.connect(ctx.destination);
+
+    low.start();
+    mid.start();
+
+    ambientCtx = ctx;
+    ambientNodes = { low, mid, filter, master };
+  } catch (error) {
+    // ignore audio errors
+  }
+}
+
+function stopAmbientSound() {
+  if (!ambientCtx || !ambientNodes) return;
+  try {
+    ambientNodes.low.stop();
+    ambientNodes.mid.stop();
+    ambientCtx.close();
+  } catch (error) {
+    // ignore audio errors
+  } finally {
+    ambientCtx = null;
+    ambientNodes = null;
+  }
+}
+
+function syncAmbientSound(settings) {
+  const enabled = !!(settings?.sound && settings?.ambient);
+  if (enabled) {
+    startAmbientSound();
+  } else {
+    stopAmbientSound();
+  }
+}
+
 function computePowerScore(stats, talents) {
   const baseScore = Math.round(
     (stats.hp || 0) * 0.2 +
@@ -177,6 +239,7 @@ export function renderMainScreen() {
   const player = getPlayerState();
   const combatProfile = getPlayerCombatProfile();
   const settings = getSettings();
+  syncAmbientSound(settings);
   const xpMax = xpToNext(player.level);
   const pendingRewards = getPendingRewards();
   const pendingEvent = getPendingEvent();
@@ -286,6 +349,10 @@ export function renderMainScreen() {
             <span>Son</span>
             <input id="sound-input" type="checkbox" ${settings.sound ? 'checked' : ''} />
           </label>
+          <label class="setting-row">
+            <span>Ambiance</span>
+            <input id="ambient-input" type="checkbox" ${settings.ambient ? 'checked' : ''} />
+          </label>
         </section>
 
         <section class="card">
@@ -390,6 +457,12 @@ export function renderMainScreen() {
 
   document.getElementById('sound-input')?.addEventListener('change', event => {
     updateSettings({ sound: event.target.checked });
+    syncAmbientSound(getSettings());
+  });
+
+  document.getElementById('ambient-input')?.addEventListener('change', event => {
+    updateSettings({ ambient: event.target.checked });
+    syncAmbientSound(getSettings());
   });
 
   document.getElementById('sacrifice-btn')?.addEventListener('click', () => {
@@ -403,6 +476,8 @@ export function renderFightScreen(player, enemy) {
   const app = document.getElementById('app');
   if (app) app.classList.add('combat-mode');
   const gameUI = document.getElementById('game-ui');
+  const settings = getSettings();
+  syncAmbientSound(settings);
   const playerProfile = 'hero';
   const enemyProfile = enemy.profile || 'balanced';
   const playerWeapon = getDefaultWeapon();
