@@ -985,7 +985,7 @@ function pickEnemyWeapons(level, isBoss) {
   count = Math.min(WEAPONS.length, Math.max(0, count));
   if (!count) return [];
   if (level < 5 && !isBoss) {
-    count = Math.random() < 0.25 ? 1 : 0;
+    return [];
   }
   let forceCommon = false;
   if (isBoss && level <= 5) {
@@ -2145,6 +2145,25 @@ function buildCurseEvent(level, player) {
   };
 }
 
+function normalizeEventRarities(event, level) {
+  if (!event || !Array.isArray(event.options)) return event;
+  const rollRarity = () => pickWeighted(getRarityWeights(level)).id;
+  event.options.forEach(option => {
+    if (!option || typeof option !== 'object') return;
+    if (option.rarity) {
+      option.rarity = rollRarity();
+    }
+    if (Array.isArray(option.outcomes)) {
+      option.outcomes.forEach(outcome => {
+        if (outcome && outcome.rarity) {
+          outcome.rarity = rollRarity();
+        }
+      });
+    }
+  });
+  return event;
+}
+
 function buildRandomEvent(level, player) {
   const pool = [
     buildRelicEvent,
@@ -2162,9 +2181,9 @@ function buildRandomEvent(level, player) {
   for (let i = 0; i < 6; i++) {
     const pick = pool[Math.floor(Math.random() * pool.length)];
     const event = pick(level, player);
-    if (event) return event;
+    if (event) return normalizeEventRarities(event, level);
   }
-  return buildTrainingEvent(level, player);
+  return normalizeEventRarities(buildTrainingEvent(level, player), level);
 }
 
 function shouldTriggerEvent(level) {
@@ -2186,7 +2205,7 @@ export function maybeCreateEvent(level, isBoss = false) {
   if (isBoss) return null;
   const currentLevel = typeof level === 'number' && level > 0 ? level : gameState.player.level;
   if (currentLevel === 1 && !(gameState.player.runModifiers || []).length) {
-    const omen = buildOmenEvent(currentLevel, gameState.player);
+    const omen = normalizeEventRarities(buildOmenEvent(currentLevel, gameState.player), currentLevel);
     if (omen) {
       gameState.pendingEvent = omen;
       saveState();
