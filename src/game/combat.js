@@ -18,15 +18,18 @@ import {
   markBossDefeated,
   cashOutRun,
   resetAfterDeath,
-  consumeNextEnemy
+  consumeNextEnemy,
+  xpToNext
 } from './player.js';
 import { setHPBar, updateCombatLog, renderFightScreen, renderPostFightButtons, renderLevelUpChoices, renderBossOptions, renderBossChest, renderEventPanel, playCombatFx, showCombatOutcome, triggerScreenShake, triggerCombatZoom, updateFighterWeapon } from './ui.js';
 
 const TICK_SECONDS = 0.1;
 const MAX_FIGHT_SECONDS = 60;
 const ACTION_DELAY_MS = 700;
-const WEAPON_HOLD_ACTIONS = 2;
-const WEAPON_SWAP_DELAY_MS = 220;
+const WEAPON_SWITCH_BASE = 0.18;
+const WEAPON_SWITCH_STEP = 0.18;
+const WEAPON_SWITCH_MAX = 0.85;
+const WEAPON_SWAP_DELAY_MS = 320;
 
 function describeTalent(id) {
   const talent = getTalentById(id);
@@ -43,7 +46,7 @@ function createCombatant(profile, weaponPool = null) {
     weaponPool: Array.isArray(weaponPool) ? weaponPool.slice() : null,
     baseStats: { ...profile.stats },
     currentWeapon: profile.weapon || fallbackWeapon,
-    weaponHold: 0,
+    weaponStreak: 0,
     weaponSwapped: false,
     maxHp: profile.stats.hp,
     hp: profile.stats.hp,
@@ -64,27 +67,41 @@ function pickWeaponForAttack(attacker) {
     attacker.weaponSwapped = false;
     return attacker.currentWeapon || attacker.weapon || getDefaultWeapon();
   }
+  const current = attacker.currentWeapon || pool[0] || getDefaultWeapon();
+  const currentId = current?.id || getDefaultWeapon().id;
+
   if (pool.length === 1) {
-    const only = pool[0] || getDefaultWeapon();
-    const prevId = attacker.currentWeapon?.id || getDefaultWeapon().id;
-    const nextId = only?.id || getDefaultWeapon().id;
-    attacker.weaponSwapped = prevId !== nextId;
-    attacker.currentWeapon = only;
-    attacker.weaponHold = WEAPON_HOLD_ACTIONS;
-    return only;
+    const onlyWeapon = pool[0] || getDefaultWeapon();
+    const onlyId = onlyWeapon?.id || getDefaultWeapon().id;
+    attacker.weaponSwapped = onlyId !== currentId;
+    attacker.currentWeapon = onlyWeapon;
+    attacker.weaponStreak = attacker.weaponSwapped
+      ? 1
+      : Math.min(6, (attacker.weaponStreak || 0) + 1);
+    return onlyWeapon;
   }
-  if (attacker.weaponHold > 0 && attacker.currentWeapon) {
-    attacker.weaponHold -= 1;
-    attacker.weaponSwapped = false;
-    return attacker.currentWeapon;
+
+  const streak = attacker.weaponStreak || 0;
+  let changeChance = Math.min(WEAPON_SWITCH_MAX, WEAPON_SWITCH_BASE + streak * WEAPON_SWITCH_STEP);
+  if (currentId === 'fists') {
+    changeChance = Math.min(WEAPON_SWITCH_MAX, changeChance + 0.35);
   }
-  const pick = pool[Math.floor(Math.random() * pool.length)] || getDefaultWeapon();
-  const prevId = attacker.currentWeapon?.id || getDefaultWeapon().id;
-  const nextId = pick?.id || getDefaultWeapon().id;
-  attacker.weaponSwapped = prevId !== nextId;
-  attacker.currentWeapon = pick;
-  attacker.weaponHold = WEAPON_HOLD_ACTIONS + (Math.random() < 0.35 ? 1 : 0);
-  return pick;
+  if (Math.random() < changeChance) {
+    const options = pool.filter(entry => (entry?.id || getDefaultWeapon().id) !== currentId);
+    const pick = options.length
+      ? options[Math.floor(Math.random() * options.length)]
+      : current;
+    const nextId = pick?.id || getDefaultWeapon().id;
+    attacker.weaponSwapped = nextId !== currentId;
+    attacker.currentWeapon = pick;
+    attacker.weaponStreak = 1;
+    return pick;
+  }
+
+  attacker.weaponSwapped = false;
+  attacker.currentWeapon = current;
+  attacker.weaponStreak = Math.min(6, streak + 1);
+  return current;
 }
 
 function getAttackStats(attacker, weapon) {
@@ -315,6 +332,8 @@ export async function startCombat() {
 
   const player = createCombatant(playerProfile, weaponPool);
   const enemy = createCombatant(enemyProfile, enemyWeaponPool);
+  updateFighterWeapon('A', player.currentWeapon);
+  updateFighterWeapon('B', enemy.currentWeapon);
 
   const log = [];
   const header = [
@@ -440,8 +459,7 @@ export async function startCombat() {
   showCombatOutcome(result);
 
   const didWin = result === 'win';
-  const baseXp = 130;
-  const xpGain = didWin ? (isBoss ? Math.round(baseXp * 1.5) : baseXp) : 0;
+  const xpGain = didWin ? xpToNext(playerProfile.level) : 0;
   const goldBase = 8 + playerProfile.level * 1.2;
   const goldGain = didWin ? Math.round(goldBase * (isBoss ? 1.4 : 1)) : 0;
   const rewards = didWin
@@ -499,7 +517,7 @@ export async function startCombat() {
 
   handlePendingRewards(() => {
     if (!didWin) {
-      renderPostFightButtons();
+      renderPostFightButtons({ allowAgain: false });
       return;
     }
     const pendingEvent = maybeCreateEvent(null, isBoss);

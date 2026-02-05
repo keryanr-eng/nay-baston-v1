@@ -7,6 +7,7 @@ function wireMainScreen() {
   if (startBtn) {
     startBtn.addEventListener('click', async () => {
       startBtn.disabled = true;
+      promptForNameIfNeeded();
       await startCombat();
       startBtn.disabled = false;
     });
@@ -41,7 +42,6 @@ function promptForNameIfNeeded() {
 }
 
 function renderMain() {
-  promptForNameIfNeeded();
   renderMainScreen();
   wireMainScreen();
 }

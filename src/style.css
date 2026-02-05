@@ -450,6 +450,42 @@ h2, h3 {
   font-size: 0.85rem;
 }
 
+.collection-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.collection-title {
+  text-transform: uppercase;
+}
+
+.collection-count {
+  font-size: 0.75rem;
+  color: rgba(214, 176, 107, 0.75);
+}
+
+.collection-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+}
+
+.collection-row span {
+  color: var(--text);
+}
+
+.collection-hint {
+  margin-top: 0.15rem;
+}
+
+.collection-empty {
+  font-size: 0.75rem;
+}
+
 .collection-line strong {
   color: #f0dbb0;
 }
@@ -500,13 +536,181 @@ h2, h3 {
 .weapon-pill {
   display: inline-flex;
   align-items: center;
-  padding: 0.2rem 0.5rem;
+  gap: 0.35rem;
+  padding: 0.3rem 0.65rem;
   border-radius: 999px;
   border: 1px solid rgba(214, 176, 107, 0.25);
   background: rgba(12, 10, 12, 0.7);
-  font-size: 0.85rem;
+  font-size: 0.9rem;
   cursor: default;
   position: relative;
+}
+
+.weapon-name {
+  line-height: 1;
+}
+
+.weapon-icon {
+  position: relative;
+  width: 38px;
+  height: 8px;
+  border-radius: 999px;
+  --metal-1: #e0e4e8;
+  --metal-2: #9aa3ad;
+  --glow: rgba(200, 210, 220, 0.5);
+  background: linear-gradient(90deg, var(--metal-1), var(--metal-2));
+  box-shadow: 0 0 12px var(--glow), inset 0 0 6px rgba(0, 0, 0, 0.35);
+  filter: brightness(1.15) contrast(1.05);
+  transform: rotate(-8deg);
+  flex-shrink: 0;
+}
+
+.weapon-icon::before {
+  content: '';
+  position: absolute;
+  left: -7px;
+  top: -2px;
+  width: 9px;
+  height: 12px;
+  border-radius: 3px;
+  background: #6c4b2a;
+  box-shadow: 0 0 4px rgba(0, 0, 0, 0.4);
+}
+
+.weapon-icon::after {
+  content: '';
+  position: absolute;
+  right: -6px;
+  top: -2px;
+  width: 0;
+  height: 0;
+  border-left: 9px solid var(--metal-1);
+  border-top: 4px solid transparent;
+  border-bottom: 4px solid transparent;
+  filter: drop-shadow(0 0 4px var(--glow));
+}
+
+.weapon-icon[data-weapon="none"] {
+  --metal-1: #6b6f7a;
+  --metal-2: #3f4352;
+  --glow: rgba(120, 130, 160, 0.3);
+}
+
+.weapon-icon[data-weapon="common"] {
+  --metal-1: #e0e4e8;
+  --metal-2: #9aa3ad;
+  --glow: rgba(200, 210, 220, 0.5);
+}
+
+.weapon-icon[data-weapon="uncommon"] {
+  --metal-1: #bdf5c6;
+  --metal-2: #4aa95f;
+  --glow: rgba(90, 210, 130, 0.6);
+}
+
+.weapon-icon[data-weapon="rare"] {
+  --metal-1: #b6e0ff;
+  --metal-2: #4d8fe6;
+  --glow: rgba(80, 160, 255, 0.65);
+}
+
+.weapon-icon[data-weapon="epic"] {
+  --metal-1: #e1b6ff;
+  --metal-2: #8a4bff;
+  --glow: rgba(170, 100, 255, 0.8);
+}
+
+.weapon-icon[data-weapon="legendary"] {
+  --metal-1: #ffe2a3;
+  --metal-2: #d6a241;
+  --glow: rgba(255, 210, 120, 0.75);
+}
+
+.weapon-icon[data-weapon="ultimate"] {
+  --metal-1: #ff9c9c;
+  --metal-2: #e54444;
+  --glow: rgba(255, 90, 90, 0.85);
+}
+
+.weapon-icon[data-weapon-id="dagger"],
+.weapon-icon[data-weapon-id="sword"],
+.weapon-icon[data-weapon-id="axe"],
+.weapon-icon[data-weapon-id="spear"],
+.weapon-icon[data-weapon-id="shield"],
+.weapon-icon[data-weapon-id="gloves"] {
+  width: 48px;
+  height: 48px;
+  background: none;
+  border-radius: 10px;
+  background-color: rgba(10, 7, 12, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  transform: rotate(0deg);
+  box-shadow: inset 0 0 12px rgba(0, 0, 0, 0.45);
+  filter: drop-shadow(0 0 10px var(--glow)) drop-shadow(0 0 22px var(--glow)) brightness(1.35) contrast(1.1);
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 100% auto;
+}
+
+.weapon-icon[data-weapon-id="dagger"] {
+  background-image: url('/dagger.png');
+}
+
+.weapon-icon[data-weapon-id="sword"] {
+  background-image: url('/sword.png');
+}
+
+.weapon-icon[data-weapon-id="axe"] {
+  background-image: url('/axe.png');
+}
+
+.weapon-icon[data-weapon-id="spear"] {
+  background-image: url('/spear.png');
+}
+
+.weapon-icon[data-weapon-id="shield"] {
+  background-image: url('/shield.png');
+}
+
+.weapon-icon[data-weapon-id="gloves"] {
+  background-image: url('/gloves.png');
+}
+
+.weapon-icon[data-weapon-id="dagger"]::before,
+.weapon-icon[data-weapon-id="dagger"]::after,
+.weapon-icon[data-weapon-id="sword"]::before,
+.weapon-icon[data-weapon-id="sword"]::after,
+.weapon-icon[data-weapon-id="axe"]::before,
+.weapon-icon[data-weapon-id="axe"]::after,
+.weapon-icon[data-weapon-id="spear"]::before,
+.weapon-icon[data-weapon-id="spear"]::after,
+.weapon-icon[data-weapon-id="shield"]::before,
+.weapon-icon[data-weapon-id="shield"]::after,
+.weapon-icon[data-weapon-id="gloves"]::before,
+.weapon-icon[data-weapon-id="gloves"]::after {
+  display: none;
+}
+
+.weapon-icon[data-weapon-id="fists"] {
+  width: 26px;
+  height: 16px;
+  border-radius: 6px;
+  transform: rotate(0deg);
+  background: linear-gradient(90deg, #b88862, #8a5c38);
+  box-shadow: 0 0 6px rgba(0, 0, 0, 0.3);
+}
+
+.weapon-icon[data-weapon-id="fists"]::before {
+  left: -5px;
+  top: 2px;
+  width: 8px;
+  height: 10px;
+  border-radius: 3px;
+  background: #9a6b44;
+}
+
+.weapon-icon[data-weapon-id="fists"]::after {
+  display: none;
 }
 
 .weapon-pill::after {
@@ -841,6 +1045,38 @@ input[type="text"] {
   letter-spacing: 0.04em;
   font-size: 0.9rem;
   text-transform: uppercase;
+}
+
+.portrait-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.arsenal-row {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.arsenal-label {
+  font-size: 0.6rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(214, 176, 107, 0.7);
+}
+
+.arsenal-icons {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.arsenal-icon {
+  transform: rotate(-2deg) scale(1.35);
+  opacity: 1;
+  filter: brightness(1.2) contrast(1.1);
 }
 
 .portrait-info {
@@ -1266,8 +1502,15 @@ input[type="text"] {
 
 .sprite-weapon {
   position: absolute;
-  left: 56%;
-  bottom: calc(46px * var(--bulk));
+  --weapon-x-left: 0px;
+  --weapon-y-left: 0px;
+  --weapon-x-right: 0px;
+  --weapon-y-right: 0px;
+  --weapon-aura: rgba(200, 210, 220, 0.35);
+  left: calc(56% + var(--weapon-x-left));
+  bottom: calc(46px * var(--bulk) + var(--weapon-y-left));
+  z-index: 4;
+  pointer-events: none;
   width: calc(48px * var(--bulk));
   height: 6px;
   border-radius: 999px;
@@ -1280,6 +1523,74 @@ input[type="text"] {
   box-shadow: 0 0 12px var(--glow);
   transform: rotate(var(--weapon-rot)) scaleX(var(--weapon-flip));
   transform-origin: center;
+}
+
+.sprite-weapon[data-weapon-id="dagger"],
+.sprite-weapon[data-weapon-id="sword"],
+.sprite-weapon[data-weapon-id="axe"],
+.sprite-weapon[data-weapon-id="spear"],
+.sprite-weapon[data-weapon-id="shield"],
+.sprite-weapon[data-weapon-id="gloves"] {
+  background: none;
+  box-shadow: none;
+  border-radius: 0;
+  filter: drop-shadow(0 0 16px var(--weapon-aura)) drop-shadow(0 0 36px var(--weapon-aura));
+}
+
+.sprite-weapon[data-weapon-id="dagger"] {
+  width: calc(140px * var(--bulk));
+  height: calc(60px * var(--bulk));
+  background-image: url('/dagger.png');
+  background-repeat: no-repeat;
+  background-size: contain;
+  background-position: center;
+}
+
+.sprite-weapon[data-weapon-id="sword"] {
+  width: calc(220px * var(--bulk));
+  height: calc(110px * var(--bulk));
+  background-image: url('/sword.png');
+  background-repeat: no-repeat;
+  background-size: contain;
+  background-position: center;
+}
+
+.sprite-weapon[data-weapon-id="axe"] {
+  width: calc(220px * var(--bulk));
+  height: calc(130px * var(--bulk));
+  background-image: url('/axe.png');
+  background-repeat: no-repeat;
+  background-size: contain;
+  background-position: center;
+}
+
+.sprite-weapon[data-weapon-id="spear"] {
+  width: calc(260px * var(--bulk));
+  height: calc(70px * var(--bulk));
+  background-image: url('/spear.png');
+  background-repeat: no-repeat;
+  background-size: contain;
+  background-position: center;
+}
+
+.sprite-weapon[data-weapon-id="shield"] {
+  width: calc(116px * var(--bulk));
+  height: calc(116px * var(--bulk));
+  background-image: url('/shield.png');
+  background-repeat: no-repeat;
+  background-size: contain;
+  background-position: center;
+  --weapon-rot: 0deg;
+  --weapon-flip: 1;
+}
+
+.sprite-weapon[data-weapon-id="gloves"] {
+  width: calc(150px * var(--bulk));
+  height: calc(90px * var(--bulk));
+  background-image: url('/gloves.png');
+  background-repeat: no-repeat;
+  background-size: contain;
+  background-position: center;
 }
 
 .fighter.weapon-swap .sprite-weapon {
@@ -1300,41 +1611,77 @@ input[type="text"] {
 }
 
 .fighter-sprite[data-profile="hero"] .sprite-weapon {
-  left: 60%;
-  bottom: calc(76px * var(--bulk));
+  left: calc(50% + var(--weapon-x-left));
+  bottom: calc(58px * var(--bulk) + var(--weapon-y-left));
   --weapon-rot: -6deg;
 }
 
 .fighter.right .sprite-weapon {
   --weapon-x-right: 0px;
   --weapon-y-right: 0px;
-  left: calc(36% + var(--weapon-x-right));
-  bottom: calc(66px * var(--bulk) + var(--weapon-y-right));
+  left: calc(30% + var(--weapon-x-right));
+  bottom: calc(52px * var(--bulk) + var(--weapon-y-right));
   --weapon-flip: -1;
 }
 
 .fighter.right .sprite-weapon[data-weapon-id="spear"] {
-  --weapon-x-right: -10px;
+  --weapon-x-right: -200px;
+  --weapon-y-right: 2px;
 }
 
 .fighter.right .sprite-weapon[data-weapon-id="sword"] {
-  --weapon-x-right: -8px;
+  --weapon-x-right: -100px;
+  --weapon-y-right: 0px;
 }
 
 .fighter.right .sprite-weapon[data-weapon-id="axe"] {
-  --weapon-x-right: -6px;
+  --weapon-x-right: -100px;
+  --weapon-y-right: -17px;
 }
 
 .fighter.right .sprite-weapon[data-weapon-id="dagger"] {
-  --weapon-x-right: -5px;
+  --weapon-x-right: -60px;
+  --weapon-y-right: -11px;
 }
 
 .fighter.right .sprite-weapon[data-weapon-id="shield"] {
-  --weapon-x-right: 4px;
+  --weapon-x-right: -20px;
+  --weapon-y-right: -25px;
 }
 
 .fighter.right .sprite-weapon[data-weapon-id="gloves"] {
-  --weapon-x-right: 2px;
+  --weapon-x-right: -50px;
+  --weapon-y-right: -11px;
+}
+
+.fighter.left .sprite-weapon[data-weapon-id="axe"] {
+  --weapon-x-left: -50px;
+  --weapon-y-left: -15px;
+}
+
+.fighter.left .sprite-weapon[data-weapon-id="spear"] {
+  --weapon-x-left: -72px;
+  --weapon-y-left: -2px;
+}
+
+.fighter.left .sprite-weapon[data-weapon-id="gloves"] {
+  --weapon-x-left: -40px;
+  --weapon-y-left: -5px;
+}
+
+.fighter.left .sprite-weapon[data-weapon-id="sword"] {
+  --weapon-x-left: -62px;
+  --weapon-y-left: 0px;
+}
+
+.fighter.left .sprite-weapon[data-weapon-id="dagger"] {
+  --weapon-x-left: -40px;
+  --weapon-y-left: 5px;
+}
+
+.fighter.left .sprite-weapon[data-weapon-id="shield"] {
+  --weapon-x-left: -45px;
+  --weapon-y-left: -45px;
 }
 
 .sprite-weapon::before {
@@ -1362,198 +1709,80 @@ input[type="text"] {
   filter: drop-shadow(0 0 4px var(--glow));
 }
 
+.sprite-weapon[data-weapon-id="dagger"]::before,
+.sprite-weapon[data-weapon-id="dagger"]::after,
+.sprite-weapon[data-weapon-id="sword"]::before,
+.sprite-weapon[data-weapon-id="sword"]::after,
+.sprite-weapon[data-weapon-id="axe"]::before,
+.sprite-weapon[data-weapon-id="axe"]::after,
+.sprite-weapon[data-weapon-id="spear"]::before,
+.sprite-weapon[data-weapon-id="spear"]::after,
+.sprite-weapon[data-weapon-id="shield"]::before,
+.sprite-weapon[data-weapon-id="shield"]::after,
+.sprite-weapon[data-weapon-id="gloves"]::before,
+.sprite-weapon[data-weapon-id="gloves"]::after {
+  display: none;
+}
+
 .sprite-weapon[data-weapon="none"] {
   --metal-1: #6b6f7a;
   --metal-2: #3f4352;
   --glow: rgba(120, 130, 160, 0.3);
+  --weapon-aura: rgba(120, 130, 160, 0.25);
 }
 
 .sprite-weapon[data-weapon="common"] {
   --metal-1: #e0e4e8;
   --metal-2: #9aa3ad;
   --glow: rgba(200, 210, 220, 0.5);
+  --weapon-aura: rgba(200, 210, 220, 0.55);
 }
 
 .sprite-weapon[data-weapon="uncommon"] {
   --metal-1: #bdf5c6;
   --metal-2: #4aa95f;
   --glow: rgba(90, 210, 130, 0.6);
+  --weapon-aura: rgba(90, 210, 130, 0.7);
 }
 
 .sprite-weapon[data-weapon="rare"] {
   --metal-1: #b6e0ff;
   --metal-2: #4d8fe6;
   --glow: rgba(80, 160, 255, 0.65);
+  --weapon-aura: rgba(90, 170, 255, 0.75);
 }
 
 .sprite-weapon[data-weapon="epic"] {
   --metal-1: #e1b6ff;
   --metal-2: #8a4bff;
   --glow: rgba(170, 100, 255, 0.8);
+  --weapon-aura: rgba(180, 110, 255, 0.9);
 }
 
 .sprite-weapon[data-weapon="legendary"] {
   --metal-1: #ffe2a3;
   --metal-2: #d6a241;
   --glow: rgba(255, 210, 120, 0.75);
+  --weapon-aura: rgba(255, 205, 120, 0.95);
 }
 
 .sprite-weapon[data-weapon="ultimate"] {
   --metal-1: #ff9c9c;
   --metal-2: #e54444;
   --glow: rgba(255, 90, 90, 0.85);
+  --weapon-aura: rgba(255, 90, 90, 1);
 }
 
 .sprite-weapon[data-weapon-id="fists"] {
-  width: 22px;
-  height: 10px;
-  border-radius: 6px;
-  --weapon-rot: -4deg;
-  background: linear-gradient(90deg, #b88862, #8a5c38);
-  box-shadow: 0 0 6px rgba(0, 0, 0, 0.3);
+  display: none;
 }
 
 .sprite-weapon[data-weapon-id="fists"]::before {
-  left: -6px;
-  top: -1px;
-  width: 10px;
-  height: 10px;
-  border-radius: 4px;
-  background: #9a6b44;
+  display: none;
 }
 
 .sprite-weapon[data-weapon-id="fists"]::after {
   display: none;
-}
-
-.sprite-weapon[data-weapon-id="dagger"] {
-  width: 30px;
-  height: 4px;
-  --weapon-rot: -8deg;
-}
-
-.sprite-weapon[data-weapon-id="sword"] {
-  width: 58px;
-  height: 6px;
-  border-radius: 2px 999px 999px 2px;
-  --weapon-rot: -10deg;
-}
-
-.sprite-weapon[data-weapon-id="dagger"]::after {
-  right: -6px;
-  top: -3px;
-  border-left: 7px solid var(--metal-1);
-  border-top: 3px solid transparent;
-  border-bottom: 3px solid transparent;
-}
-
-.sprite-weapon[data-weapon-id="sword"]::after {
-  content: '';
-  position: absolute;
-  left: 8px;
-  top: -5px;
-  width: 10px;
-  height: 16px;
-  border-radius: 6px;
-  background: #6c4b2a;
-}
-
-.sprite-weapon[data-weapon-id="sword"]::before {
-  left: -12px;
-  top: -2px;
-  width: 12px;
-  height: 10px;
-  border-radius: 4px;
-  background: #5c3b1f;
-}
-
-.sprite-weapon[data-weapon-id="spear"] {
-  width: 72px;
-  height: 4px;
-  --weapon-rot: -6deg;
-  background: linear-gradient(90deg, #7a5a33, #4d341b);
-  box-shadow: 0 0 6px rgba(0, 0, 0, 0.35);
-}
-
-.sprite-weapon[data-weapon-id="spear"]::after {
-  right: -10px;
-  top: -4px;
-  border-left: 10px solid var(--metal-1);
-  border-top: 4px solid transparent;
-  border-bottom: 4px solid transparent;
-}
-
-.sprite-weapon[data-weapon-id="axe"] {
-  width: 34px;
-  height: 8px;
-  --weapon-rot: -12deg;
-  background: linear-gradient(90deg, #7a5a33, #4d341b);
-  box-shadow: 0 0 6px rgba(0, 0, 0, 0.35);
-}
-
-.sprite-weapon[data-weapon-id="axe"]::after {
-  content: '';
-  position: absolute;
-  right: -12px;
-  top: -10px;
-  width: 20px;
-  height: 24px;
-  border-radius: 50% 60% 60% 50%;
-  background: linear-gradient(180deg, var(--metal-1), var(--metal-2));
-  box-shadow: 0 0 10px var(--glow);
-}
-
-.sprite-weapon[data-weapon-id="shield"] {
-  width: 30px;
-  height: 30px;
-  border-radius: 50%;
-  --weapon-rot: 0deg;
-  background: radial-gradient(circle at 30% 30%, var(--metal-1), var(--metal-2));
-  box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.35), 0 0 10px var(--glow);
-}
-
-.sprite-weapon[data-weapon-id="shield"]::before {
-  content: '';
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  border: 2px solid rgba(0, 0, 0, 0.25);
-  transform: translate(-50%, -50%);
-}
-
-.sprite-weapon[data-weapon-id="shield"]::after {
-  display: none;
-}
-
-.sprite-weapon[data-weapon-id="gloves"] {
-  width: 26px;
-  height: 8px;
-  border-radius: 8px;
-  --weapon-rot: -4deg;
-}
-
-.sprite-weapon[data-weapon-id="gloves"]::before {
-  left: -8px;
-  top: -2px;
-  width: 10px;
-  height: 10px;
-  border-radius: 5px;
-  background: inherit;
-}
-
-.sprite-weapon[data-weapon-id="gloves"]::after {
-  content: '';
-  position: absolute;
-  left: 10px;
-  top: -2px;
-  width: 10px;
-  height: 10px;
-  border-radius: 5px;
-  background: inherit;
-  box-shadow: 12px 0 0 rgba(255, 255, 255, 0.12);
 }
 
 .sprite-arc {
@@ -2367,9 +2596,9 @@ input[type="text"] {
 
 .fx-pop.weapon {
   color: #f2d27a;
-  font-size: 1.05rem;
-  letter-spacing: 0.12em;
-  text-shadow: 0 0 16px rgba(242, 210, 122, 0.7);
+  font-size: 1.2rem;
+  letter-spacing: 0.16em;
+  text-shadow: 0 0 20px rgba(242, 210, 122, 0.9);
 }
 
 .fx-dust {
@@ -2519,6 +2748,20 @@ input[type="text"] {
   animation: fxFlash 0.35s ease;
 }
 
+.fx-swap {
+  --fx-color: rgba(255, 210, 120, 0.45);
+  animation: fxSwap 0.5s ease;
+  box-shadow: 0 0 24px rgba(255, 210, 120, 0.25);
+}
+
+.fx-swap::after {
+  animation: fxFlash 0.5s ease;
+}
+
+.fighter.fx-swap .fighter-sprite {
+  animation: spriteSwap 0.5s ease;
+}
+
 @keyframes fxFlash {
   0% { opacity: 0; }
   25% { opacity: 0.6; }
@@ -2544,6 +2787,18 @@ input[type="text"] {
   0% { transform: scale(1); }
   40% { transform: scale(1.02); }
   100% { transform: scale(1); }
+}
+
+@keyframes fxSwap {
+  0% { transform: translateY(0); }
+  40% { transform: translateY(-6px); }
+  100% { transform: translateY(0); }
+}
+
+@keyframes spriteSwap {
+  0% { transform: translateX(0) scale(1); }
+  40% { transform: translateX(6px) scale(1.06); }
+  100% { transform: translateX(0) scale(1); }
 }
 
 @keyframes popFloat {

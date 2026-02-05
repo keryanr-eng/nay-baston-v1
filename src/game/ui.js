@@ -30,6 +30,16 @@ const LEGACY_RARITY_MAP = {
   red: 'ultimate'
 };
 
+const ASSET_BASE = import.meta.env.BASE_URL || '/';
+const WEAPON_SPRITES = {
+  dagger: { file: 'dagger.png', w: 86, h: 34 },
+  sword: { file: 'sword.png', w: 210, h: 86 },
+  axe: { file: 'axe.png', w: 108, h: 52 },
+  spear: { file: 'spear.png', w: 120, h: 30 },
+  shield: { file: 'shield.png', w: 56, h: 56 },
+  gloves: { file: 'gloves.png', w: 64, h: 36 }
+};
+
 function normalizeRarity(rarity) {
   if (!rarity) return 'common';
   return LEGACY_RARITY_MAP[rarity] || rarity;
@@ -423,7 +433,7 @@ export function renderMainScreen() {
     ? weaponCollection.sets.map(set => {
         const text = formatBonusStats(set.stats);
         const cls = set.active ? 'collection-set active' : 'collection-set';
-        return `<span class="${cls}">${set.count} armes: ${text || 'Aucun bonus'}</span>`;
+        return `<span class="${cls}">Palier ${set.count} armes: ${text || 'Aucun bonus'}</span>`;
       }).join('')
     : '';
 
@@ -506,17 +516,27 @@ export function renderMainScreen() {
           <div class="weapon-line">
             <span>Armes possedees</span>
             <strong class="weapon-pills">
-              ${weaponList.map(w => `<span class="weapon-pill rarity-${normalizeRarity(w.rarity)}" data-tip="${weaponStatsText(w)}">${w.name}</span>`).join(' ')}
+              ${weaponList.map(w => {
+                const rarity = normalizeRarity(w.rarity);
+                const label = w.name || 'Poings';
+                const weaponId = w.id || 'fists';
+                const iconHtml = weaponId === 'fists' ? '' : `<span class="weapon-icon" data-weapon="${rarity}" data-weapon-id="${weaponId}"></span>`;
+                return `<span class="weapon-pill rarity-${rarity}" data-tip="${weaponStatsText(w)}">${iconHtml}<span class="weapon-name">${label}</span></span>`;
+              }).join(' ')}
             </strong>
             <span class="muted">${ownedWeapons.length ? 'Utilise une arme au hasard en combat.' : 'Aucune arme, utilise les poings.'}</span>
           </div>
           <div class="collection-line">
-            <span>Bonus collection (${weaponCollection.count} armes)</span>
-            <strong>${collectionTotalLine || 'Aucun bonus pour le moment.'}</strong>
-            <span class="muted small">Par arme: ${collectionPerWeaponLine || 'Aucun'}</span>
-            <div class="collection-sets">
-              ${collectionSetsLine}
+            <div class="collection-header">
+              <span class="collection-title">Bonus collection</span>
+              <span class="collection-count">${weaponCollection.count} armes</span>
             </div>
+            <div class="collection-row"><strong>Total</strong><span>${collectionTotalLine || 'Aucun bonus'}</span></div>
+            <div class="collection-row"><strong>Par arme</strong><span>${collectionPerWeaponLine || 'Aucun'}</span></div>
+            <div class="collection-sets">
+              ${collectionSetsLine || '<span class="collection-empty muted">Aucun palier actif.</span>'}
+            </div>
+            <div class="collection-hint muted small">Les bonus de collection s'ajoutent automatiquement a tes stats.</div>
           </div>
           <div class="power-line">Puissance totale: ${playerPower}</div>
         </section>
@@ -543,7 +563,7 @@ export function renderMainScreen() {
           <h3>Reglages</h3>
           <label class="setting-row">
             <span>Vitesse d'animation</span>
-            <input id="speed-input" type="range" min="0.5" max="2" step="0.1" value="${settings.animSpeed}" />
+            <input id="speed-input" type="range" min="0.5" max="5" step="0.1" value="${settings.animSpeed}" />
             <span class="muted">${settings.animSpeed.toFixed(1)}x</span>
           </label>
           <label class="setting-row">
@@ -708,6 +728,23 @@ export function renderFightScreen(player, enemy) {
   const enemyWeapon = getDefaultWeapon();
   const playerWeaponRarity = 'none';
   const enemyWeaponRarity = enemyWeapon?.id === 'fists' ? 'none' : (enemyWeapon?.rarity || 'none');
+  const playerArsenal = getOwnedWeapons();
+  const playerArsenalList = playerArsenal.length ? playerArsenal : [getDefaultWeapon()];
+  const playerArsenalIcons = playerArsenalList.filter(entry => (entry?.id || '') !== 'fists').map(entry => {
+    const def = getWeaponById(entry.id) || getDefaultWeapon();
+    const rarity = normalizeRarity(entry.rarity || def.rarity || 'common');
+    const weaponId = def.id || 'fists';
+    const label = def.name || 'Poings';
+    return `<span class="weapon-icon arsenal-icon" data-weapon="${rarity}" data-weapon-id="${weaponId}" title="${label}"></span>`;
+  }).join('');
+  const enemyArsenal = Array.isArray(enemy.weapons) && enemy.weapons.length ? enemy.weapons : [getDefaultWeapon()];
+  const enemyArsenalIcons = enemyArsenal.filter(entry => (entry?.id || '') !== 'fists').map(entry => {
+    const def = getWeaponById(entry.id) || getDefaultWeapon();
+    const rarity = normalizeRarity(entry.rarity || def.rarity || 'common');
+    const weaponId = def.id || 'fists';
+    const label = def.name || 'Poings';
+    return `<span class="weapon-icon arsenal-icon" data-weapon="${rarity}" data-weapon-id="${weaponId}" title="${label}"></span>`;
+  }).join('');
   gameUI.innerHTML = `
     <section class="card fight-card ${enemy.isBoss ? 'boss-entry' : ''}">
       <div class="combat-outcome" id="combat-outcome"></div>
@@ -717,7 +754,13 @@ export function renderFightScreen(player, enemy) {
           <div class="portrait-card">
             <div class="portrait-head" data-profile="${playerProfile}"></div>
             <div class="portrait-info">
-              <div class="portrait-name">${player.name}</div>
+              <div class="portrait-title">
+                <div class="portrait-name">${player.name}</div>
+                <div class="arsenal-row">
+                  <span class="arsenal-label">Arsenal</span>
+                  <span class="arsenal-icons">${playerArsenalIcons}</span>
+                </div>
+              </div>
               <div class="portrait-sub">Niv ${player.level} - Arme: <span class="portrait-weapon rarity-common">Poings</span></div>
             </div>
           </div>
@@ -738,7 +781,13 @@ export function renderFightScreen(player, enemy) {
           <div class="portrait-card">
             <div class="portrait-head" data-profile="${enemyProfile}"></div>
             <div class="portrait-info">
-              <div class="portrait-name">${enemy.name}</div>
+              <div class="portrait-title">
+                <div class="portrait-name">${enemy.name}</div>
+                <div class="arsenal-row">
+                  <span class="arsenal-label">Arsenal</span>
+                  <span class="arsenal-icons">${enemyArsenalIcons}</span>
+                </div>
+              </div>
               <div class="portrait-sub">Niv ${enemy.level} - ${enemy.isBoss ? 'BOSS' : enemyProfile} - Arme: <span class="portrait-weapon rarity-common">Poings</span></div>
             </div>
           </div>
@@ -877,6 +926,12 @@ export function updateFighterWeapon(side, weapon) {
   if (spriteWeapon) {
     spriteWeapon.setAttribute('data-weapon', rarity);
     spriteWeapon.setAttribute('data-weapon-id', weaponId);
+    const spriteConfig = WEAPON_SPRITES[weaponId];
+    if (spriteConfig) {
+      spriteWeapon.style.backgroundImage = `url('${ASSET_BASE}${spriteConfig.file}')`;
+    } else {
+      spriteWeapon.style.backgroundImage = '';
+    }
   }
   const spriteArc = fighter.querySelector('.sprite-arc');
   if (spriteArc) {
@@ -892,12 +947,14 @@ export function updateFighterWeapon(side, weapon) {
   }
   if (prevWeaponId && prevWeaponId !== weaponId) {
     fighter.classList.add('weapon-swap');
+    addFxClass(side, 'fx-swap', 520);
     spawnFxText(side, displayName, 'weapon');
-    setTimeout(() => fighter.classList.remove('weapon-swap'), 260);
+    setTimeout(() => fighter.classList.remove('weapon-swap'), 420);
   }
 }
 
-export function renderPostFightButtons() {
+export function renderPostFightButtons(options = {}) {
+  const { allowAgain = true } = options;
   const combatLog = document.getElementById('combat-log');
   const existing = document.getElementById('post-combat-menu');
   if (existing) existing.remove();
@@ -905,7 +962,7 @@ export function renderPostFightButtons() {
   const menu = document.createElement('div');
   menu.id = 'post-combat-menu';
   menu.innerHTML = `
-    <button id="again-btn" class="primary">Relancer une baston</button>
+    ${allowAgain ? '<button id="again-btn" class="primary">Relancer une baston</button>' : ''}
     <button id="back-btn">Retour au menu</button>
   `;
   const actions = document.getElementById('combat-log-actions');
@@ -915,9 +972,11 @@ export function renderPostFightButtons() {
     combatLog.appendChild(menu);
   }
 
-  document.getElementById('again-btn')?.addEventListener('click', () => {
-    window.dispatchEvent(new Event('combat-again'));
-  });
+  if (allowAgain) {
+    document.getElementById('again-btn')?.addEventListener('click', () => {
+      window.dispatchEvent(new Event('combat-again'));
+    });
+  }
   document.getElementById('back-btn')?.addEventListener('click', () => {
     window.dispatchEvent(new Event('return-main'));
   });
