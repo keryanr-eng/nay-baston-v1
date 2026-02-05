@@ -1502,16 +1502,18 @@ input[type="text"] {
 
 .sprite-weapon {
   position: absolute;
+  --weapon-size-scale: 1;
+  --weapon-offset-scale: 1;
   --weapon-x-left: 0px;
   --weapon-y-left: 0px;
   --weapon-x-right: 0px;
   --weapon-y-right: 0px;
   --weapon-aura: rgba(200, 210, 220, 0.35);
-  left: calc(56% + var(--weapon-x-left));
-  bottom: calc(46px * var(--bulk) + var(--weapon-y-left));
+  left: calc(56% + (var(--weapon-x-left) * var(--weapon-offset-scale)));
+  bottom: calc((46px * var(--bulk)) + (var(--weapon-y-left) * var(--weapon-offset-scale)));
   z-index: 4;
   pointer-events: none;
-  width: calc(48px * var(--bulk));
+  width: calc(48px * var(--bulk) * var(--weapon-size-scale));
   height: 6px;
   border-radius: 999px;
   --metal-1: #f0e2b6;
@@ -1538,8 +1540,8 @@ input[type="text"] {
 }
 
 .sprite-weapon[data-weapon-id="dagger"] {
-  width: calc(140px * var(--bulk));
-  height: calc(60px * var(--bulk));
+  width: calc(140px * var(--bulk) * var(--weapon-size-scale));
+  height: calc(60px * var(--bulk) * var(--weapon-size-scale));
   background-image: url('/dagger.png');
   background-repeat: no-repeat;
   background-size: contain;
@@ -1547,8 +1549,8 @@ input[type="text"] {
 }
 
 .sprite-weapon[data-weapon-id="sword"] {
-  width: calc(220px * var(--bulk));
-  height: calc(110px * var(--bulk));
+  width: calc(220px * var(--bulk) * var(--weapon-size-scale));
+  height: calc(110px * var(--bulk) * var(--weapon-size-scale));
   background-image: url('/sword.png');
   background-repeat: no-repeat;
   background-size: contain;
@@ -1556,8 +1558,8 @@ input[type="text"] {
 }
 
 .sprite-weapon[data-weapon-id="axe"] {
-  width: calc(220px * var(--bulk));
-  height: calc(130px * var(--bulk));
+  width: calc(220px * var(--bulk) * var(--weapon-size-scale));
+  height: calc(130px * var(--bulk) * var(--weapon-size-scale));
   background-image: url('/axe.png');
   background-repeat: no-repeat;
   background-size: contain;
@@ -1565,8 +1567,8 @@ input[type="text"] {
 }
 
 .sprite-weapon[data-weapon-id="spear"] {
-  width: calc(260px * var(--bulk));
-  height: calc(70px * var(--bulk));
+  width: calc(260px * var(--bulk) * var(--weapon-size-scale));
+  height: calc(70px * var(--bulk) * var(--weapon-size-scale));
   background-image: url('/spear.png');
   background-repeat: no-repeat;
   background-size: contain;
@@ -1574,8 +1576,8 @@ input[type="text"] {
 }
 
 .sprite-weapon[data-weapon-id="shield"] {
-  width: calc(116px * var(--bulk));
-  height: calc(116px * var(--bulk));
+  width: calc(116px * var(--bulk) * var(--weapon-size-scale));
+  height: calc(116px * var(--bulk) * var(--weapon-size-scale));
   background-image: url('/shield.png');
   background-repeat: no-repeat;
   background-size: contain;
@@ -1585,8 +1587,8 @@ input[type="text"] {
 }
 
 .sprite-weapon[data-weapon-id="gloves"] {
-  width: calc(150px * var(--bulk));
-  height: calc(90px * var(--bulk));
+  width: calc(150px * var(--bulk) * var(--weapon-size-scale));
+  height: calc(90px * var(--bulk) * var(--weapon-size-scale));
   background-image: url('/gloves.png');
   background-repeat: no-repeat;
   background-size: contain;
@@ -1611,16 +1613,16 @@ input[type="text"] {
 }
 
 .fighter-sprite[data-profile="hero"] .sprite-weapon {
-  left: calc(50% + var(--weapon-x-left));
-  bottom: calc(58px * var(--bulk) + var(--weapon-y-left));
+  left: calc(50% + (var(--weapon-x-left) * var(--weapon-offset-scale)));
+  bottom: calc((58px * var(--bulk)) + (var(--weapon-y-left) * var(--weapon-offset-scale)));
   --weapon-rot: -6deg;
 }
 
 .fighter.right .sprite-weapon {
   --weapon-x-right: 0px;
   --weapon-y-right: 0px;
-  left: calc(30% + var(--weapon-x-right));
-  bottom: calc(52px * var(--bulk) + var(--weapon-y-right));
+  left: calc(30% + (var(--weapon-x-right) * var(--weapon-offset-scale)));
+  bottom: calc((52px * var(--bulk)) + (var(--weapon-y-right) * var(--weapon-offset-scale)));
   --weapon-flip: -1;
 }
 
@@ -2921,11 +2923,11 @@ input[type="text"] {
     grid-template-columns: repeat(2, 1fr);
   }
 
-  .arena {
+  #app.combat-mode .arena {
     flex-direction: column;
   }
 
-  .fighter {
+  #app.combat-mode .fighter {
     width: 100%;
   }
 
@@ -2937,10 +2939,124 @@ input[type="text"] {
 @media (max-width: 900px) {
   #app.combat-mode {
     display: block;
-    max-width: 560px;
+    max-width: 100%;
+    padding: 1rem 0.7rem 1.4rem;
+    font-size: 0.97rem;
+  }
+
+  #app.combat-mode h1 {
+    text-align: center;
+    font-size: clamp(1.35rem, 6.2vw, 1.95rem);
+    letter-spacing: 0.11em;
+  }
+
+  #app.combat-mode h1::after {
+    margin: 0.6rem auto 0;
+    width: 130px;
+  }
+
+  #app.combat-mode .fight-card {
+    padding: 0.9rem;
+  }
+
+  #app.combat-mode .arena {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.75rem;
+    padding: 0.8rem;
+  }
+
+  #app.combat-mode .fighter {
+    width: 100%;
+    padding: 0.7rem;
+  }
+
+  #app.combat-mode .portrait-card {
+    padding: 0.3rem 0.45rem;
+    gap: 0.38rem;
+  }
+
+  #app.combat-mode .portrait-name {
+    font-size: 0.84rem;
+  }
+
+  #app.combat-mode .portrait-sub {
+    font-size: 0.66rem;
+  }
+
+  #app.combat-mode .arsenal-icon {
+    transform: rotate(-2deg) scale(1.05);
+  }
+
+  #app.combat-mode .fighter-sprite-wrap {
+    width: 122px;
+    height: 122px;
+  }
+
+  #app.combat-mode .sprite-weapon {
+    --weapon-size-scale: 0.62;
+    --weapon-offset-scale: 0.66;
+  }
+
+  #app.combat-mode .hp-bar {
+    height: 22px;
+  }
+
+  #app.combat-mode .hp-text {
+    font-size: 0.92rem;
+  }
+
+  #app.combat-mode .combat-outcome {
+    font-size: 1.05rem;
+    letter-spacing: 0.12em;
+    padding: 0.42rem 1rem;
   }
 
   #app.combat-mode #combat-log {
+    margin-top: 0.8rem;
     max-height: none;
+    min-height: 130px;
+    font-size: 0.93rem;
+    line-height: 1.45;
+    padding: 0.8rem;
+  }
+
+  #app.combat-mode .combat-log-entries {
+    max-height: 42vh;
+  }
+}
+
+@media (max-width: 600px) {
+  #app.combat-mode {
+    padding: 0.85rem 0.45rem 1.1rem;
+  }
+
+  #app.combat-mode .fight-card {
+    padding: 0.72rem;
+  }
+
+  #app.combat-mode .fighter {
+    padding: 0.58rem;
+  }
+
+  #app.combat-mode .fighter-sprite-wrap {
+    width: 108px;
+    height: 108px;
+  }
+
+  #app.combat-mode .sprite-weapon {
+    --weapon-size-scale: 0.54;
+    --weapon-offset-scale: 0.58;
+  }
+
+  #app.combat-mode .combat-outcome {
+    font-size: 0.92rem;
+    letter-spacing: 0.1em;
+    padding: 0.38rem 0.82rem;
+  }
+
+  #app.combat-mode #combat-log {
+    font-size: 0.88rem;
+    padding: 0.72rem;
   }
 }
