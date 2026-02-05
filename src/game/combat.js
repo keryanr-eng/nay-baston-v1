@@ -3,6 +3,7 @@ import {
   grantXp,
   getTalentById,
   getWeaponById,
+  getWeaponBaseDamage,
   applyWeaponStats,
   getDefaultWeapon,
   getOwnedWeapons,
@@ -117,8 +118,11 @@ function getAttackStats(attacker, weapon) {
   return applyWeaponStats(base, weapon);
 }
 
-function calculateDamage(attacker, defenderDef) {
-  let damage = Math.max(1, Math.round(attacker.atk - defenderDef * 0.6));
+function calculateDamage(attacker, defenderDef, weaponInstance) {
+  const weaponId = weaponInstance?.id || getDefaultWeapon().id;
+  const weaponDef = weaponId === 'fists' ? getDefaultWeapon() : getWeaponById(weaponId);
+  const weaponBase = getWeaponBaseDamage(weaponDef, weaponInstance?.rarity || weaponDef?.rarity);
+  let damage = Math.max(1, Math.round(attacker.atk + weaponBase - defenderDef * 0.6));
 
   if (attacker.talents.includes('berserk')) {
     if (attacker.hp / attacker.maxHp < 0.35) {
@@ -178,7 +182,7 @@ function performAttack(attacker, defender, log, defenderStats = null) {
     return { outcome: 'dodge' };
   }
 
-  const { damage, isCrit } = calculateDamage(attacker, defValue);
+  const { damage, isCrit } = calculateDamage(attacker, defValue, attacker.currentWeapon || attacker.weapon);
   defender.hp -= damage;
   log.push(`${attacker.name} inflige ${damage} degats a ${defender.name}.`);
   const effects = applyOnHitEffects(attacker, defender, damage, log);
@@ -529,6 +533,7 @@ export async function startCombat() {
           title: result?.title || pendingEvent.title || 'Evenement',
           choiceLabel: result?.choiceLabel || '',
           summary: result?.summary || 'Aucun effet.',
+          autoContinue: !isBoss,
           onContinue: () => {
             const nextEvent = getPendingEvent();
             if (nextEvent) {

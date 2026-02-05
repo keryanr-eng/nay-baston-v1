@@ -30,6 +30,16 @@ const EMPTY_BONUS_STATS = {
   precision: 0
 };
 
+const EMPTY_BONUS_PERCENTS = {
+  hp: 0,
+  atk: 0,
+  def: 0,
+  spd: 0,
+  crit: 0,
+  dodge: 0,
+  precision: 0
+};
+
 const DEFAULT_SETTINGS = {
   animSpeed: 1,
   sound: true,
@@ -54,12 +64,60 @@ const TALENTS = [
 ];
 
 const WEAPONS = [
-  { id: 'dagger', name: 'Dagger', rarity: 'common', desc: 'Eclair rapide et tres precis.', stats: { atk: -2, spd: 6, crit: 0.08, precision: 0.08 } },
-  { id: 'sword', name: 'Sword', rarity: 'rare', desc: 'Polyvalente, degats fiables.', stats: { atk: 7, precision: 0.02, crit: 0.02 } },
-  { id: 'axe', name: 'Axe', rarity: 'ultimate', desc: 'Degats monstrueux, lourde et imprecise.', stats: { atk: 12, spd: -4, precision: -0.12, crit: 0.04 } },
-  { id: 'shield', name: 'Shield', rarity: 'epic', desc: 'Mur vivant, tres lent.', stats: { def: 12, hp: 55, spd: -4, atk: -3 } },
-  { id: 'spear', name: 'Spear', rarity: 'legendary', desc: 'Portee, precision et crit.', stats: { atk: 6, spd: 3, crit: 0.05, precision: 0.08 } },
-  { id: 'gloves', name: 'Gloves', rarity: 'uncommon', desc: 'Frappe en rafale, presque sans degats.', stats: { atk: -4, spd: 7, dodge: 0.07, precision: 0.03 } }
+  {
+    id: 'dagger',
+    name: 'Dagger',
+    rarity: 'common',
+    desc: 'Ultra rapide et precise, mais fragile.',
+    baseDamage: 4,
+    flat: { atk: 1, spd: 5, def: -2, crit: 0.03, precision: 0.05 },
+    pct: { atk: -0.08, spd: 0.22, def: -0.08, crit: 0.22, precision: 0.2 }
+  },
+  {
+    id: 'sword',
+    name: 'Sword',
+    rarity: 'rare',
+    desc: 'Arme stable, polyvalente et fiable.',
+    baseDamage: 9,
+    flat: { atk: 6, spd: 1, crit: 0.02, precision: 0.02 },
+    pct: { atk: 0.16, spd: 0.05, crit: 0.08, precision: 0.08 }
+  },
+  {
+    id: 'axe',
+    name: 'Axe',
+    rarity: 'ultimate',
+    desc: 'Brutale: gros degats, tres lourde.',
+    baseDamage: 15,
+    flat: { atk: 12, spd: -3, precision: -0.08, crit: 0.03 },
+    pct: { atk: 0.3, spd: -0.18, precision: -0.22, crit: 0.16 }
+  },
+  {
+    id: 'shield',
+    name: 'Shield',
+    rarity: 'epic',
+    desc: 'Version tank: survie enorme, impact offensif reduit.',
+    baseDamage: 3,
+    flat: { hp: 40, def: 12, atk: -4, spd: -3, dodge: -0.02, precision: -0.03 },
+    pct: { hp: 0.22, def: 0.3, atk: -0.12, spd: -0.15, dodge: -0.1, precision: -0.08 }
+  },
+  {
+    id: 'spear',
+    name: 'Spear',
+    rarity: 'legendary',
+    desc: 'Portee et controle, tres bon anti-dodge.',
+    baseDamage: 10,
+    flat: { atk: 7, spd: 2, crit: 0.03, precision: 0.07, dodge: 0.01 },
+    pct: { atk: 0.18, spd: 0.1, crit: 0.1, precision: 0.18, dodge: 0.06 }
+  },
+  {
+    id: 'gloves',
+    name: 'Gloves',
+    rarity: 'uncommon',
+    desc: 'Style rafale: vitesse et esquive, degats bruts plus faibles.',
+    baseDamage: 5,
+    flat: { atk: -3, spd: 6, crit: 0.02, precision: 0.02, dodge: 0.05 },
+    pct: { atk: -0.12, spd: 0.28, crit: 0.16, precision: 0.12, dodge: 0.18 }
+  }
 ];
 
 const DEFAULT_WEAPON = {
@@ -67,7 +125,9 @@ const DEFAULT_WEAPON = {
   name: 'Poings',
   rarity: 'common',
   desc: 'Arme de base.',
-  stats: { atk: 0 }
+  baseDamage: 2,
+  flat: { atk: 0 },
+  pct: {}
 };
 
 const WEAPON_COLLECTION_BONUS = {
@@ -130,8 +190,26 @@ const RARITY_MULTIPLIERS = {
   uncommon: 1.08,
   rare: 1.18,
   epic: 1.32,
-  legendary: 1.5,
-  ultimate: 1.75
+  legendary: 2.1,
+  ultimate: 2.8
+};
+
+const WEAPON_RARITY_FLAT_MULTIPLIERS = {
+  common: 1,
+  uncommon: 1.12,
+  rare: 1.26,
+  epic: 1.42,
+  legendary: 2.1,
+  ultimate: 2.8
+};
+
+const WEAPON_RARITY_PERCENT_MULTIPLIERS = {
+  common: 1,
+  uncommon: 1.08,
+  rare: 1.16,
+  epic: 1.26,
+  legendary: 2.1,
+  ultimate: 2.8
 };
 
 const LEGACY_RARITY_MAP = {
@@ -140,6 +218,9 @@ const LEGACY_RARITY_MAP = {
   purple: 'epic',
   red: 'ultimate'
 };
+
+const MIN_LEGENDARY_LEVEL = 10;
+const MIN_ULTIMATE_LEVEL = 15;
 
 const STORAGE_VERSION = 3;
 
@@ -271,6 +352,34 @@ function scalePercent(value, multiplier) {
   return Number((value * multiplier).toFixed(3));
 }
 
+function getWeaponFlatMultiplier(rarity) {
+  const normalized = normalizeRarity(rarity);
+  return WEAPON_RARITY_FLAT_MULTIPLIERS[normalized] ?? 1;
+}
+
+function getWeaponPercentMultiplier(rarity) {
+  const normalized = normalizeRarity(rarity);
+  return WEAPON_RARITY_PERCENT_MULTIPLIERS[normalized] ?? 1;
+}
+
+function getWeaponFlatStats(weapon) {
+  if (!weapon) return {};
+  return weapon.flat || weapon.stats || {};
+}
+
+function getWeaponPercentStats(weapon) {
+  if (!weapon) return {};
+  return weapon.pct || {};
+}
+
+export function getWeaponBaseDamage(weapon, rarityOverride = null) {
+  if (!weapon) return 0;
+  const base = weapon.baseDamage || 0;
+  if (!base) return 0;
+  const mult = getWeaponFlatMultiplier(rarityOverride || weapon.rarity);
+  return Math.max(0, Math.round(base * mult));
+}
+
 function sanitizeName(name) {
   if (!name || typeof name !== 'string') return 'Heros';
   if (name.includes(`H\u00C3`) || name.includes(`\u00C3`)) return 'Heros';
@@ -290,11 +399,13 @@ function createEmptyPlayer(seed, name = 'Heros') {
     weapon: null,
     weapons: [],
     bonusStats: { ...EMPTY_BONUS_STATS },
+    bonusPercents: { ...EMPTY_BONUS_PERCENTS },
     permanent: {
       talents: [],
       weapons: [],
       relics: [],
-      bonusStats: { ...EMPTY_BONUS_STATS }
+      bonusStats: { ...EMPTY_BONUS_STATS },
+      bonusPercents: { ...EMPTY_BONUS_PERCENTS }
     },
     runRewards: [],
     lastBossLevel: 0,
@@ -343,6 +454,15 @@ function normalizeState(saved) {
     dodge: permanent.bonusStats?.dodge || 0,
     precision: permanent.bonusStats?.precision || 0
   };
+  const permanentBonusPercents = {
+    hp: permanent.bonusPercents?.hp || 0,
+    atk: permanent.bonusPercents?.atk || 0,
+    def: permanent.bonusPercents?.def || 0,
+    spd: permanent.bonusPercents?.spd || 0,
+    crit: permanent.bonusPercents?.crit || 0,
+    dodge: permanent.bonusPercents?.dodge || 0,
+    precision: permanent.bonusPercents?.precision || 0
+  };
   const weaponFallback = (typeof player.weapon === 'string' ? player.weapon : player.weapon?.id)
     || runWeapons[0]?.id
     || permanentWeapons[0]?.id
@@ -369,11 +489,21 @@ function normalizeState(saved) {
         dodge: player.bonusStats?.dodge || 0,
         precision: player.bonusStats?.precision || 0
       },
+      bonusPercents: {
+        hp: player.bonusPercents?.hp || 0,
+        atk: player.bonusPercents?.atk || 0,
+        def: player.bonusPercents?.def || 0,
+        spd: player.bonusPercents?.spd || 0,
+        crit: player.bonusPercents?.crit || 0,
+        dodge: player.bonusPercents?.dodge || 0,
+        precision: player.bonusPercents?.precision || 0
+      },
       permanent: {
         talents: permanentTalents,
         weapons: permanentWeapons,
         relics: permanentRelics,
-        bonusStats: permanentBonusStats
+        bonusStats: permanentBonusStats,
+        bonusPercents: permanentBonusPercents
       },
       runRewards: Array.isArray(player.runRewards) ? player.runRewards : [],
       lastBossLevel: player.lastBossLevel || 0,
@@ -400,7 +530,12 @@ export function getTalentsCatalog() {
 }
 
 export function getWeaponsCatalog() {
-  return WEAPONS.map(w => ({ ...w, stats: { ...w.stats } }));
+  return WEAPONS.map(w => ({
+    ...w,
+    flat: { ...getWeaponFlatStats(w) },
+    pct: { ...getWeaponPercentStats(w) },
+    stats: { ...getWeaponFlatStats(w) }
+  }));
 }
 
 export function getRelicsCatalog() {
@@ -489,31 +624,62 @@ export function computeBaseStats(level, bonusStats = null) {
   return base;
 }
 
-export function getWeaponEffectiveStats(weapon, rarityOverride = null, extraBonus = null) {
-  if (!weapon || !weapon.stats) return {};
-  const multiplier = getRarityMultiplier(rarityOverride || weapon.rarity);
-  const scaled = {};
-  Object.keys(weapon.stats).forEach(key => {
-    const value = weapon.stats[key];
-    if (typeof value !== 'number') return;
+function applyPercentBonuses(stats, bonusPercents) {
+  if (!bonusPercents) return { ...stats };
+  const merged = { ...stats };
+  Object.keys(merged).forEach(key => {
+    const pct = bonusPercents[key] || 0;
+    if (!pct) return;
+    merged[key] = merged[key] * (1 + pct);
+  });
+  return merged;
+}
+
+export function getWeaponEffectiveModifiers(weapon, rarityOverride = null, extraBonus = null) {
+  const flatStats = getWeaponFlatStats(weapon);
+  const pctStats = getWeaponPercentStats(weapon);
+  if (!Object.keys(flatStats).length && !Object.keys(pctStats).length && !extraBonus) {
+    return { flat: {}, pct: {} };
+  }
+
+  const flatMult = getWeaponFlatMultiplier(rarityOverride || weapon?.rarity);
+  const pctMult = getWeaponPercentMultiplier(rarityOverride || weapon?.rarity);
+  const flat = {};
+  const pct = {};
+
+  Object.keys(flatStats).forEach(key => {
+    const value = flatStats[key];
+    if (typeof value !== 'number' || !value) return;
     if (value > 0) {
       if (key === 'crit' || key === 'dodge' || key === 'precision') {
-        scaled[key] = scalePercent(value, multiplier);
+        flat[key] = scalePercent(value, flatMult);
       } else {
-        scaled[key] = value * multiplier;
+        flat[key] = value * flatMult;
       }
     } else {
-      scaled[key] = value;
+      flat[key] = value;
     }
   });
+
+  Object.keys(pctStats).forEach(key => {
+    const value = pctStats[key];
+    if (typeof value !== 'number' || !value) return;
+    pct[key] = value > 0 ? scalePercent(value, pctMult) : value;
+  });
+
   if (extraBonus) {
     Object.keys(extraBonus).forEach(key => {
       const value = extraBonus[key];
       if (!value) return;
-      scaled[key] = (scaled[key] || 0) + value;
+      flat[key] = (flat[key] || 0) + value;
     });
   }
-  return scaled;
+
+  return { flat, pct };
+}
+
+export function getWeaponEffectiveStats(weapon, rarityOverride = null, extraBonus = null) {
+  return getWeaponEffectiveModifiers(weapon, rarityOverride, extraBonus).flat;
 }
 
 export function applyWeaponStats(stats, weaponInput) {
@@ -525,9 +691,13 @@ export function applyWeaponStats(stats, weaponInput) {
   const rarity = typeof weaponInput === 'object' ? weaponInput.rarity : null;
   const bonusStats = typeof weaponInput === 'object' ? weaponInput.bonusStats : null;
   const merged = { ...stats };
-  const weaponStats = getWeaponEffectiveStats(weapon, rarity, bonusStats);
-  Object.keys(weaponStats).forEach(key => {
-    merged[key] = (merged[key] || 0) + weaponStats[key];
+  const modifiers = getWeaponEffectiveModifiers(weapon, rarity, bonusStats);
+  const keys = new Set([...Object.keys(modifiers.flat), ...Object.keys(modifiers.pct)]);
+  keys.forEach(key => {
+    const baseValue = merged[key] || 0;
+    const flatValue = modifiers.flat[key] || 0;
+    const pctValue = modifiers.pct[key] || 0;
+    merged[key] = (baseValue + flatValue) * (1 + pctValue);
   });
   return merged;
 }
@@ -657,8 +827,19 @@ function getCombinedBonusStats(player) {
   return combined;
 }
 
+function getCombinedBonusPercents(player) {
+  const combined = { ...EMPTY_BONUS_PERCENTS };
+  const run = player.bonusPercents || {};
+  const perm = player.permanent?.bonusPercents || {};
+  Object.keys(combined).forEach(key => {
+    combined[key] = (run[key] || 0) + (perm[key] || 0);
+  });
+  return combined;
+}
+
 function computeMaxPotentialDodge(player) {
   const combinedBonus = getCombinedBonusStats(player);
+  const combinedPercents = getCombinedBonusPercents(player);
   const baseStats = computeBaseStats(player.level, combinedBonus);
   const relics = getCombinedRelics(player);
   const modifiers = getRunModifiersList(player);
@@ -668,7 +849,12 @@ function computeMaxPotentialDodge(player) {
   withTalents = applyRelicPassives(withTalents, relics);
   const weaponList = getCombinedWeapons(player);
   const list = weaponList.length ? weaponList : [{ id: DEFAULT_WEAPON.id, rarity: DEFAULT_WEAPON.rarity }];
-  return Math.max(...list.map(weapon => applyRunModifiers(applyWeaponStats(withTalents, weapon), modifiers).dodge));
+  return Math.max(...list.map(weapon => {
+    let merged = applyWeaponStats(withTalents, weapon);
+    merged = applyRunModifiers(merged, modifiers);
+    merged = applyPercentBonuses(merged, combinedPercents);
+    return merged.dodge;
+  }));
 }
 
 function computeWeaponCollectionBonus(player) {
@@ -701,6 +887,7 @@ export function getPlayerCombatProfile(weaponOverride = null) {
   const player = gameState.player;
   const weaponInstance = resolveWeaponInstance(player, weaponOverride ?? player.weapon);
   const bonusStats = getCombinedBonusStats(player);
+  const bonusPercents = getCombinedBonusPercents(player);
   const base = computeBaseStats(player.level, bonusStats);
   const talents = getCombinedTalents(player);
   const relics = getCombinedRelics(player);
@@ -710,6 +897,7 @@ export function getPlayerCombatProfile(weaponOverride = null) {
   merged = applyTalentPassives(merged, talents);
   merged = applySynergyPassives(merged, talents);
   merged = applyRunModifiers(merged, modifiers);
+  merged = applyPercentBonuses(merged, bonusPercents);
   return {
     name: player.name,
     level: player.level,
@@ -763,6 +951,11 @@ export function getOwnedBonusStats() {
   return getCombinedBonusStats(gameState.player);
 }
 
+export function getOwnedBonusPercents() {
+  ensureState();
+  return getCombinedBonusPercents(gameState.player);
+}
+
 export function getWeaponCollectionBonus() {
   ensureState();
   return computeWeaponCollectionBonus(gameState.player);
@@ -791,12 +984,26 @@ function pickEnemyWeapons(level, isBoss) {
   if (isBoss) count += 1;
   count = Math.min(WEAPONS.length, Math.max(0, count));
   if (!count) return [];
+  if (level < 5 && !isBoss) {
+    count = Math.random() < 0.25 ? 1 : 0;
+  }
+  let forceCommon = false;
+  if (isBoss && level <= 5) {
+    const player = gameState?.player;
+    const hasPlayerWeapon = Array.isArray(player?.weapons) && player.weapons.length > 0;
+    if (!hasPlayerWeapon) {
+      count = 1;
+      forceCommon = true;
+    }
+  }
   const pool = WEAPONS.slice();
   const picks = [];
   while (picks.length < count && pool.length) {
     const idx = Math.floor(Math.random() * pool.length);
     const weapon = pool.splice(idx, 1)[0];
-    const rarity = pickWeighted(getRarityWeights(level)).id;
+    const rarity = (level < 5 && !isBoss) || forceCommon
+      ? 'common'
+      : pickWeighted(getRarityWeights(level)).id;
     picks.push({ id: weapon.id, rarity });
   }
   return picks;
@@ -804,8 +1011,10 @@ function pickEnemyWeapons(level, isBoss) {
 
 function createEnemyProfile(level, isBoss) {
   const base = computeBaseStats(level);
-  const normalScale = 0.82 + (level - 1) * 0.026;
-  const bossScale = isBoss ? (level < 10 ? 1.18 : 1.32) : 1;
+  const earlyScale = 0.82 + (level - 1) * 0.026;
+  const lateBoost = Math.max(0, level - 8) * 0.01;
+  const normalScale = earlyScale + lateBoost;
+  const bossScale = isBoss ? (level < 10 ? 1.22 : 1.38) : 1;
   const scale = normalScale * bossScale;
   const baseStats = {
     hp: base.hp * scale,
@@ -958,19 +1167,46 @@ function pickWeighted(list) {
 }
 
 function getRarityWeights(level) {
-  const tier = Math.floor((level - 1) / 5);
-  const shift = Math.min(0.18, tier * 0.03);
+  const brackets = [
+    { min: 1, common: 40, uncommon: 25, rare: 20, epic: 15, legendary: 0, ultimate: 0 },
+    { min: 10, common: 35, uncommon: 23, rare: 21, epic: 20, legendary: 1, ultimate: 0 },
+    { min: 20, common: 30, uncommon: 20, rare: 22, epic: 23, legendary: 4, ultimate: 1 },
+    { min: 30, common: 24, uncommon: 18, rare: 23, epic: 24, legendary: 8, ultimate: 3 },
+    { min: 40, common: 20, uncommon: 16, rare: 23, epic: 23, legendary: 12, ultimate: 6 },
+    { min: 50, common: 14, uncommon: 12, rare: 22, epic: 22, legendary: 19, ultimate: 11 },
+    { min: 60, common: 8, uncommon: 10, rare: 20, epic: 22, legendary: 25, ultimate: 15 }
+  ];
+
+  const bracket = brackets.reduce((picked, entry) => (level >= entry.min ? entry : picked), brackets[0]);
   const weights = {
-    common: 0.42 - shift * 1.1,
-    uncommon: 0.25 - shift * 0.5,
-    rare: 0.18 + shift * 0.4,
-    epic: 0.1 + shift * 0.5,
-    legendary: 0.04 + shift * 0.4,
-    ultimate: 0.01 + shift * 0.3
+    common: bracket.common / 100,
+    uncommon: bracket.uncommon / 100,
+    rare: bracket.rare / 100,
+    epic: bracket.epic / 100,
+    legendary: bracket.legendary / 100,
+    ultimate: bracket.ultimate / 100
   };
+  if (level < MIN_LEGENDARY_LEVEL) weights.legendary = 0;
+  if (level < MIN_ULTIMATE_LEVEL) weights.ultimate = 0;
   const total = Object.values(weights).reduce((sum, val) => sum + val, 0);
-  return Object.keys(weights).map(id => ({ id, weight: weights[id] / total }));
+  return Object.keys(weights).map(id => ({ id, weight: total ? weights[id] / total : 0 }));
 }
+
+const STAT_REWARD_PERCENT_CHANCE = {
+  common: 0,
+  uncommon: 0,
+  rare: 0.15,
+  epic: 0.35,
+  legendary: 0.6,
+  ultimate: 0.85
+};
+
+const STAT_REWARD_PERCENT_TIERS = {
+  rare: { hp: 0.02, atk: 0.02, def: 0.02, spd: 0.015, crit: 0.004, dodge: 0.004, precision: 0.004 },
+  epic: { hp: 0.03, atk: 0.03, def: 0.03, spd: 0.02, crit: 0.006, dodge: 0.006, precision: 0.006 },
+  legendary: { hp: 0.045, atk: 0.045, def: 0.045, spd: 0.03, crit: 0.008, dodge: 0.008, precision: 0.008 },
+  ultimate: { hp: 0.06, atk: 0.06, def: 0.06, spd: 0.04, crit: 0.012, dodge: 0.012, precision: 0.012 }
+};
 
 function buildStatReward(level, excludedStats = []) {
   const rarity = pickWeighted(getRarityWeights(level)).id;
@@ -990,20 +1226,34 @@ function buildStatReward(level, excludedStats = []) {
   const stat = list[Math.floor(Math.random() * list.length)];
   const tier = Math.floor((level - 1) / 5);
   const scale = 1 + tier * 0.12;
-  const rawValue = tiers[rarity][stat];
-  const value = stat === 'crit' || stat === 'dodge' || stat === 'precision'
-    ? Number((rawValue * scale).toFixed(3))
-    : Math.max(1, Math.round(rawValue * scale));
-  const statLabel = stat === 'precision' ? 'PREC' : stat.toUpperCase();
-  const label = stat === 'crit' || stat === 'dodge' || stat === 'precision'
-    ? `+${(value * 100).toFixed(1)}% ${statLabel}`
-    : `+${value} ${stat.toUpperCase()}`;
-  const desc = `Bonus ${stat.toUpperCase()}.`;
+  const isPercent = Math.random() < (STAT_REWARD_PERCENT_CHANCE[rarity] || 0);
+  let value;
+  let label;
+  let desc;
+  if (isPercent) {
+    const percentTier = STAT_REWARD_PERCENT_TIERS[rarity] || STAT_REWARD_PERCENT_TIERS.rare;
+    const rawValue = percentTier[stat] || 0.02;
+    value = Number((rawValue * scale).toFixed(3));
+    const statLabel = stat === 'precision' ? 'PREC' : stat.toUpperCase();
+    label = `+${(value * 100).toFixed(1)}% ${statLabel}`;
+    desc = `Bonus % ${stat.toUpperCase()}.`;
+  } else {
+    const rawValue = tiers[rarity][stat];
+    value = stat === 'crit' || stat === 'dodge' || stat === 'precision'
+      ? Number((rawValue * scale).toFixed(3))
+      : Math.max(1, Math.round(rawValue * scale));
+    const statLabel = stat === 'precision' ? 'PREC' : stat.toUpperCase();
+    label = stat === 'crit' || stat === 'dodge' || stat === 'precision'
+      ? `+${(value * 100).toFixed(1)}% ${statLabel}`
+      : `+${value} ${stat.toUpperCase()}`;
+    desc = `Bonus ${stat.toUpperCase()}.`;
+  }
   return {
     id: `stat-${stat}-${rarity}-${Math.random().toString(36).slice(2, 6)}`,
     type: 'stat',
     stat,
     value,
+    isPercent,
     rarity,
     label,
     desc
@@ -1053,7 +1303,8 @@ function buildLevelUpOptions(level) {
   const tier = Math.floor((level - 1) / 5);
   const bonusChance = Math.min(0.12, tier * 0.02);
   const rollTalent = level % 2 === 0 && Math.random() < (0.38 + bonusChance) && talentAvailable;
-  const rollWeapon = level % 3 === 0 && Math.random() < (0.28 + bonusChance) && weaponAvailable;
+  const earlyWeaponBoost = level < 5 ? 0.25 : 0;
+  const rollWeapon = level % 3 === 0 && Math.random() < (0.28 + bonusChance + earlyWeaponBoost) && weaponAvailable;
 
   let choice = 'stat';
   if (rollTalent && rollWeapon) {
@@ -1105,6 +1356,11 @@ function formatStatLabel(stat, value) {
     return `+${(value * 100).toFixed(1)}% ${label}`;
   }
   return `+${Math.round(value)} ${label}`;
+}
+
+function formatStatLabelPercent(stat, value) {
+  const label = stat === 'precision' ? 'PREC' : stat.toUpperCase();
+  return `+${(value * 100).toFixed(1)}% ${label}`;
 }
 
 function formatStatChange(stat, value) {
@@ -1162,7 +1418,11 @@ function buildEventDesc(statChanges, extraParts = []) {
     if (part) parts.push(part);
   });
   statChanges.forEach(change => {
-    parts.push(formatStatChange(change.stat, change.value));
+    if (change.isPercent) {
+      parts.push(formatStatLabelPercent(change.stat, change.value));
+    } else {
+      parts.push(formatStatChange(change.stat, change.value));
+    }
   });
   if (!parts.length) return 'Aucun effet.';
   return parts.join(', ');
@@ -1223,7 +1483,12 @@ function buildShopStatOffer(level, player, count = 2) {
     usedStats.add(reward.stat);
   }
   const rarity = pickHighestRarity(rewards.map(reward => reward.rarity));
-  const statChanges = rewards.map(reward => ({ stat: reward.stat, value: reward.value, reward: true }));
+  const statChanges = rewards.map(reward => ({
+    stat: reward.stat,
+    value: reward.value,
+    reward: true,
+    isPercent: reward.isPercent
+  }));
   return {
     id: `shop-stat-${Math.random().toString(36).slice(2, 6)}`,
     type: 'stat',
@@ -1958,7 +2223,11 @@ export function applyEventChoice(choiceId) {
     if (stat === 'dodge' && change.value > 0 && computeMaxPotentialDodge(player) >= DODGE_CAP) {
       stat = 'precision';
     }
-    player.bonusStats[stat] = (player.bonusStats[stat] || 0) + change.value;
+    if (change.isPercent) {
+      player.bonusPercents[stat] = (player.bonusPercents[stat] || 0) + change.value;
+    } else {
+      player.bonusStats[stat] = (player.bonusStats[stat] || 0) + change.value;
+    }
     appliedChanges.push({ stat, value: change.value });
     if (change.reward && change.value > 0) {
       const rewardRarity = normalizeRarity(change.rarity || resolved.rarity || choice.rarity || 'common');
@@ -1966,8 +2235,9 @@ export function applyEventChoice(choiceId) {
         type: 'stat',
         stat,
         value: change.value,
-        label: formatStatLabel(stat, change.value),
-        rarity: rewardRarity
+        label: change.isPercent ? formatStatLabelPercent(stat, change.value) : formatStatLabel(stat, change.value),
+        rarity: rewardRarity,
+        isPercent: !!change.isPercent
       }));
     }
   });
@@ -2080,18 +2350,27 @@ export function applyRewardChoice(choiceId) {
 
   if (choice.type === 'stat') {
     const rewardRarity = normalizeRarity(choice.rarity || 'common');
-    gameState.player.bonusStats[choice.stat] += choice.value;
+    if (choice.isPercent) {
+      gameState.player.bonusPercents[choice.stat] += choice.value;
+    } else {
+      gameState.player.bonusStats[choice.stat] += choice.value;
+    }
     gameState.player.runRewards.push(createRunReward({
       type: 'stat',
       stat: choice.stat,
       value: choice.value,
-      label: choice.label,
+      label: choice.isPercent
+        ? formatStatLabelPercent(choice.stat, choice.value)
+        : choice.label,
+      isPercent: !!choice.isPercent,
       rarity: rewardRarity
     }));
     addRewardHistory({
       source: `Niveau ${gameState.player.level}`,
       rewardType: 'stat',
-      label: choice.label,
+      label: choice.isPercent
+        ? formatStatLabelPercent(choice.stat, choice.value)
+        : choice.label,
       desc: choice.desc || '',
       rarity: rewardRarity
     });
@@ -2180,6 +2459,7 @@ function resetRunState(player, options = {}) {
   player.weapons = [];
   player.weapon = null;
   player.bonusStats = { ...EMPTY_BONUS_STATS };
+  player.bonusPercents = { ...EMPTY_BONUS_PERCENTS };
   player.runRewards = [];
   player.lastBossLevel = 0;
   player.history = [];
@@ -2221,7 +2501,11 @@ export function cashOutRun(pickKey = null) {
     pick = normalized[Math.floor(Math.random() * normalized.length)];
   }
   if (pick.type === 'stat') {
-    player.permanent.bonusStats[pick.stat] += pick.value;
+    if (pick.isPercent) {
+      player.permanent.bonusPercents[pick.stat] += pick.value;
+    } else {
+      player.permanent.bonusStats[pick.stat] += pick.value;
+    }
   } else if (pick.type === 'talent') {
     if (!player.permanent.talents.includes(pick.talentId)) {
       player.permanent.talents.push(pick.talentId);
@@ -2250,7 +2534,8 @@ export function resetAfterDeath(options = {}) {
     talents: [],
     weapons: [],
     relics: [],
-    bonusStats: { ...EMPTY_BONUS_STATS }
+    bonusStats: { ...EMPTY_BONUS_STATS },
+    bonusPercents: { ...EMPTY_BONUS_PERCENTS }
   };
   resetRunState(player, { promptName: !skipNamePrompt });
   gameState.pendingRewards = [];

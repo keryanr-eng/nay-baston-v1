@@ -1,4 +1,4 @@
-import { getPlayerState, getPlayerCombatProfile, getSettings, updateSettings, getTalentById, getTalentDescription, getWeaponById, getWeaponEffectiveStats, xpToNext, getPendingRewards, getPendingEvent, getOwnedWeapons, getOwnedTalents, getOwnedRelics, getRunModifiers, getRelicById, getModifierById, getNextEnemyPreview, getDefaultWeapon, computeBaseStats, applyWeaponStats, applyTalentPassives, applyRelicPassives, applyRunModifiers, applySynergyPassives, getOwnedBonusStats, getWeaponCollectionBonus, applyEventChoice } from './player.js';
+import { getPlayerState, getPlayerCombatProfile, getSettings, updateSettings, getTalentById, getTalentDescription, getWeaponById, getWeaponEffectiveModifiers, getWeaponBaseDamage, xpToNext, getPendingRewards, getPendingEvent, getOwnedWeapons, getOwnedTalents, getOwnedRelics, getRunModifiers, getRelicById, getModifierById, getNextEnemyPreview, getDefaultWeapon, computeBaseStats, applyWeaponStats, applyTalentPassives, applyRelicPassives, applyRunModifiers, applySynergyPassives, getOwnedBonusStats, getOwnedBonusPercents, getWeaponCollectionBonus, applyEventChoice } from './player.js';
 
 const FX_TIMERS = {
   A: {},
@@ -43,6 +43,32 @@ const WEAPON_SPRITES = {
 function normalizeRarity(rarity) {
   if (!rarity) return 'common';
   return LEGACY_RARITY_MAP[rarity] || rarity;
+}
+
+function buildArsenalPreview(entries) {
+  const list = Array.isArray(entries) ? entries : [];
+  const filtered = list.filter(entry => (entry?.id || '') !== 'fists');
+  if (!filtered.length) return '<span class="arsenal-empty">-</span>';
+
+  const icons = filtered.map(entry => {
+    const def = getWeaponById(entry.id) || getDefaultWeapon();
+    const rarity = normalizeRarity(entry.rarity || def.rarity || 'common');
+    const weaponId = def.id || 'fists';
+    const label = def.name || 'Poings';
+    return `<span class="weapon-icon arsenal-icon" data-weapon="${rarity}" data-weapon-id="${weaponId}" title="${label}"></span>`;
+  });
+
+  const count = filtered.length;
+  const slotWidth = 112;
+  const gapPx = count <= 3 ? 4 : count <= 5 ? 3 : 2;
+  const rawSize = Math.floor((slotWidth - Math.max(0, count - 1) * gapPx) / Math.max(1, count));
+  const iconSize = Math.min(30, Math.max(12, rawSize));
+  const title = filtered.map(entry => {
+    const def = getWeaponById(entry.id) || getDefaultWeapon();
+    return def.name || 'Arme';
+  }).join(', ');
+
+  return `<span class="arsenal-icons-list" style="--arsenal-icon-size:${iconSize}px;--arsenal-gap:${gapPx}px" title="${title}">${icons.join('')}</span>`;
 }
 
 function getFighterEl(side) {
@@ -116,22 +142,48 @@ function weaponStatsText(weaponInstance) {
   if (!weaponInstance) return 'Arme de base.';
   const weaponId = weaponInstance.id || weaponInstance.weaponId || weaponInstance?.id;
   if (weaponId === 'fists') return 'Arme de base.';
-  const weaponDef = weaponInstance.stats ? weaponInstance : getWeaponById(weaponId);
-  if (!weaponDef || !weaponDef.stats || !Object.keys(weaponDef.stats).length) return 'Arme de base.';
+  const weaponDef = getWeaponById(weaponId);
+  if (!weaponDef) return 'Arme de base.';
   const rarity = weaponInstance.rarity || weaponDef.rarity || 'common';
-  const stats = getWeaponEffectiveStats(weaponDef, rarity, weaponInstance.bonusStats);
+  const modifiers = getWeaponEffectiveModifiers(weaponDef, rarity, weaponInstance.bonusStats);
+  const baseDmg = getWeaponBaseDamage(weaponDef, rarity);
   const parts = [];
-  const format = (key, value) => {
+  const order = ['hp', 'atk', 'def', 'spd', 'crit', 'dodge', 'precision'];
+  const formatFlat = (key, value) => {
+    if (!value) return '';
     const sign = value > 0 ? '+' : '';
+    const label = key === 'precision' ? 'PREC' : key.toUpperCase();
     if (key === 'crit' || key === 'dodge' || key === 'precision') {
-      const label = key === 'precision' ? 'PREC' : key.toUpperCase();
-      return `${label} ${sign}${(value * 100).toFixed(1)}%`;
+      return `${sign}${(value * 100).toFixed(1)} pts`;
     }
-    return `${key.toUpperCase()} ${sign}${Math.round(value)}`;
+    return `${sign}${Math.round(value)}`;
   };
-  Object.keys(stats).forEach(key => {
-    parts.push(format(key, stats[key]));
+  const formatPct = value => {
+    if (!value) return '';
+    const sign = value > 0 ? '+' : '';
+    return `${sign}${(value * 100).toFixed(0)}%`;
+  };
+  if (baseDmg) {
+    parts.push(`DMG +${baseDmg}`);
+  }
+  order.forEach(key => {
+    const flatValue = modifiers.flat[key] || 0;
+    const pctValue = modifiers.pct[key] || 0;
+    if (!flatValue && !pctValue) return;
+    const label = key === 'precision' ? 'PREC' : key.toUpperCase();
+    const flatText = formatFlat(key, flatValue);
+    const pctText = formatPct(pctValue);
+    if (flatText && pctText) {
+      parts.push(`${label} ${flatText} (${pctText})`);
+      return;
+    }
+    if (flatText) {
+      parts.push(`${label} ${flatText}`);
+      return;
+    }
+    parts.push(`${label} ${pctText}`);
   });
+  if (!parts.length) return 'Arme de base.';
   return parts.join(' | ');
 }
 
@@ -155,6 +207,19 @@ function formatBonusStats(stats) {
     } else {
       parts.push(`${label} +${Math.round(value)}`);
     }
+  });
+  return parts.join(' | ');
+}
+
+function formatBonusPercents(stats) {
+  if (!stats) return '';
+  const order = ['hp', 'atk', 'def', 'spd', 'crit', 'dodge', 'precision'];
+  const parts = [];
+  order.forEach(key => {
+    const value = stats[key];
+    if (!value) return;
+    const label = key === 'precision' ? 'PREC' : key.toUpperCase();
+    parts.push(`${label} +${(value * 100).toFixed(1)}%`);
   });
   return parts.join(' | ');
 }
@@ -392,6 +457,7 @@ export function renderMainScreen() {
   const ownedRelics = getOwnedRelics();
   const runModifiers = getRunModifiers();
   const combinedBonus = getOwnedBonusStats();
+  const combinedPercents = getOwnedBonusPercents();
   const weaponCollection = getWeaponCollectionBonus();
   const baseStats = computeBaseStats(player.level, combinedBonus);
   const powerSamples = weaponPool.map(weaponEntry => {
@@ -429,6 +495,7 @@ export function renderMainScreen() {
 
   const collectionTotalLine = formatBonusStats(weaponCollection.stats);
   const collectionPerWeaponLine = formatBonusStats(weaponCollection.perWeapon);
+  const combinedPercentsLine = formatBonusPercents(combinedPercents);
   const collectionSetsLine = weaponCollection.sets.length
     ? weaponCollection.sets.map(set => {
         const text = formatBonusStats(set.stats);
@@ -532,6 +599,7 @@ export function renderMainScreen() {
               <span class="collection-count">${weaponCollection.count} armes</span>
             </div>
             <div class="collection-row"><strong>Total</strong><span>${collectionTotalLine || 'Aucun bonus'}</span></div>
+            <div class="collection-row"><strong>Total %</strong><span>${combinedPercentsLine || 'Aucun'}</span></div>
             <div class="collection-row"><strong>Par arme</strong><span>${collectionPerWeaponLine || 'Aucun'}</span></div>
             <div class="collection-sets">
               ${collectionSetsLine || '<span class="collection-empty muted">Aucun palier actif.</span>'}
@@ -730,21 +798,9 @@ export function renderFightScreen(player, enemy) {
   const enemyWeaponRarity = enemyWeapon?.id === 'fists' ? 'none' : (enemyWeapon?.rarity || 'none');
   const playerArsenal = getOwnedWeapons();
   const playerArsenalList = playerArsenal.length ? playerArsenal : [getDefaultWeapon()];
-  const playerArsenalIcons = playerArsenalList.filter(entry => (entry?.id || '') !== 'fists').map(entry => {
-    const def = getWeaponById(entry.id) || getDefaultWeapon();
-    const rarity = normalizeRarity(entry.rarity || def.rarity || 'common');
-    const weaponId = def.id || 'fists';
-    const label = def.name || 'Poings';
-    return `<span class="weapon-icon arsenal-icon" data-weapon="${rarity}" data-weapon-id="${weaponId}" title="${label}"></span>`;
-  }).join('');
+  const playerArsenalIcons = buildArsenalPreview(playerArsenalList);
   const enemyArsenal = Array.isArray(enemy.weapons) && enemy.weapons.length ? enemy.weapons : [getDefaultWeapon()];
-  const enemyArsenalIcons = enemyArsenal.filter(entry => (entry?.id || '') !== 'fists').map(entry => {
-    const def = getWeaponById(entry.id) || getDefaultWeapon();
-    const rarity = normalizeRarity(entry.rarity || def.rarity || 'common');
-    const weaponId = def.id || 'fists';
-    const label = def.name || 'Poings';
-    return `<span class="weapon-icon arsenal-icon" data-weapon="${rarity}" data-weapon-id="${weaponId}" title="${label}"></span>`;
-  }).join('');
+  const enemyArsenalIcons = buildArsenalPreview(enemyArsenal);
   gameUI.innerHTML = `
     <section class="card fight-card ${enemy.isBoss ? 'boss-entry' : ''}">
       <div class="combat-outcome" id="combat-outcome"></div>
@@ -757,7 +813,6 @@ export function renderFightScreen(player, enemy) {
               <div class="portrait-title">
                 <div class="portrait-name">${player.name}</div>
                 <div class="arsenal-row">
-                  <span class="arsenal-label">Arsenal</span>
                   <span class="arsenal-icons">${playerArsenalIcons}</span>
                 </div>
               </div>
@@ -784,7 +839,6 @@ export function renderFightScreen(player, enemy) {
               <div class="portrait-title">
                 <div class="portrait-name">${enemy.name}</div>
                 <div class="arsenal-row">
-                  <span class="arsenal-label">Arsenal</span>
                   <span class="arsenal-icons">${enemyArsenalIcons}</span>
                 </div>
               </div>
@@ -1056,6 +1110,7 @@ export function renderBossChest({ rewards = [], onPick, onContinue }) {
           const weapon = reward.type === 'weapon' ? getWeaponById(reward.weaponId) : null;
           const talent = reward.type === 'talent' ? getTalentById(reward.talentId) : null;
           const relic = reward.type === 'relic' ? getRelicById(reward.relicId) : null;
+          const rarity = normalizeRarity(reward.rarity || weapon?.rarity || talent?.rarity || relic?.rarity || 'common');
           const title = reward.label || weapon?.name || talent?.name || relic?.name || 'Bonus';
           const desc = reward.type === 'weapon'
             ? `${weapon?.desc || ''}${weapon ? ` | ${weaponStatsText({ id: reward.weaponId, rarity })}` : ''}`
@@ -1064,7 +1119,6 @@ export function renderBossChest({ rewards = [], onPick, onContinue }) {
               : reward.type === 'relic'
                 ? (relic?.desc || '')
                 : `Bonus permanent: ${reward.label || ''}`.trim();
-          const rarity = normalizeRarity(reward.rarity || weapon?.rarity || talent?.rarity || relic?.rarity || 'common');
           const tip = reward.type === 'weapon'
             ? weaponStatsText({ id: reward.weaponId, rarity })
             : '';
@@ -1154,6 +1208,7 @@ export function renderEventPanel(eventData, onSelect = null, target = null, play
     const choiceLabel = result?.choiceLabel ? `<div class="event-result-choice">${result.choiceLabel}</div>` : '';
     const summary = result?.summary || 'Aucun effet.';
     const continueLabel = result?.continueLabel || 'Continuer';
+    const autoContinue = Boolean(result?.autoContinue);
 
     container.innerHTML = `
       <div class="event-panel event-${kind}">
@@ -1170,18 +1225,25 @@ export function renderEventPanel(eventData, onSelect = null, target = null, play
           ${choiceLabel}
           <div class="event-result-text">${summary}</div>
         </div>
-        <button id="event-continue-btn" class="primary">${continueLabel}</button>
+        ${autoContinue ? '' : `<button id="event-continue-btn" class="primary">${continueLabel}</button>`}
       </div>
     `;
 
+    const continueAction = () => {
+      if (result?.onContinue) {
+        result.onContinue();
+      } else {
+        window.dispatchEvent(new Event('return-main'));
+      }
+    };
     const continueBtn = container.querySelector('#event-continue-btn');
-    if (continueBtn) {
+    if (autoContinue) {
+      setTimeout(() => {
+        continueAction();
+      }, 900);
+    } else if (continueBtn) {
       continueBtn.addEventListener('click', () => {
-        if (result?.onContinue) {
-          result.onContinue();
-        } else {
-          window.dispatchEvent(new Event('return-main'));
-        }
+        continueAction();
       });
     }
 
@@ -1329,9 +1391,11 @@ export function renderLevelUpChoices(levelEntry, onConfirm) {
   `;
 
   let selectedId = null;
+  let isConfirming = false;
   const confirmBtn = document.getElementById('confirm-reward-btn');
   Array.from(combatLog.querySelectorAll('.reward-card')).forEach(btn => {
     btn.addEventListener('click', () => {
+      if (isConfirming) return;
       Array.from(combatLog.querySelectorAll('.reward-card')).forEach(card => {
         card.classList.remove('selected');
       });
@@ -1342,7 +1406,14 @@ export function renderLevelUpChoices(levelEntry, onConfirm) {
   });
 
   confirmBtn?.addEventListener('click', () => {
-    if (!selectedId) return;
-    onConfirm(selectedId);
+    if (isConfirming || !selectedId) return;
+    isConfirming = true;
+    const chosenId = selectedId;
+    Array.from(combatLog.querySelectorAll('.reward-card')).forEach(card => {
+      card.disabled = true;
+    });
+    confirmBtn.disabled = true;
+    confirmBtn.remove();
+    onConfirm(chosenId);
   });
 }
