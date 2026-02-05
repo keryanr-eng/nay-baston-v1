@@ -1034,6 +1034,9 @@ function createEnemyProfile(level, isBoss) {
   ];
 
   const profile = profiles[Math.floor(Math.random() * profiles.length)];
+  if (isBoss && level <= 5 && profile.id === 'tank') {
+    profile.mods = { hp: 1.15, def: 1.08, spd: 0.95, atk: 0.98 };
+  }
   const stats = { ...baseStats };
   Object.keys(profile.mods).forEach(key => {
     stats[key] = stats[key] * profile.mods[key];
@@ -1307,6 +1310,9 @@ function buildLevelUpOptions(level) {
   const rollWeapon = level % 3 === 0 && Math.random() < (0.28 + bonusChance + earlyWeaponBoost) && weaponAvailable;
 
   let choice = 'stat';
+  if (level === 3) {
+    choice = 'weapon';
+  }
   if (rollTalent && rollWeapon) {
     choice = Math.random() < 0.5 ? 'weapon' : 'talent';
   } else if (rollTalent) {
