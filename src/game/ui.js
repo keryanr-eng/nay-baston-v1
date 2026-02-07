@@ -1,4 +1,4 @@
-import { getPlayerState, getPlayerCombatProfile, getSettings, updateSettings, getTalentById, getTalentDescription, getWeaponById, getWeaponEffectiveModifiers, getWeaponBaseDamage, xpToNext, getPendingRewards, getPendingEvent, getOwnedWeapons, getOwnedTalents, getOwnedRelics, getRunModifiers, getRelicById, getModifierById, getNextEnemyPreview, getDefaultWeapon, computeBaseStats, applyWeaponStats, applyTalentPassives, applyRelicPassives, applyRunModifiers, applySynergyPassives, getOwnedBonusStats, getOwnedBonusPercents, getWeaponCollectionBonus, applyEventChoice, getTalentFamilySummary } from './player.js';
+import { getPlayerState, getPlayerCombatProfile, getSettings, updateSettings, getTalentById, getTalentDescription, getWeaponById, getWeaponEffectiveModifiers, getWeaponBaseDamage, xpToNext, getPendingRewards, getPendingEvent, getOwnedWeapons, getOwnedTalents, getOwnedRelics, getRunModifiers, getRelicById, getModifierById, getNextEnemyPreview, getDefaultWeapon, computeBaseStats, applyWeaponStats, applyTalentPassives, applyRelicPassives, applyRunModifiers, applySynergyPassives, getOwnedBonusStats, getOwnedBonusPercents, applyEventChoice, getTalentFamilySummary } from './player.js';
 
 const FX_TIMERS = {
   A: {},
@@ -459,7 +459,6 @@ export function renderMainScreen() {
   const runModifiers = getRunModifiers();
   const combinedBonus = getOwnedBonusStats();
   const combinedPercents = getOwnedBonusPercents();
-  const weaponCollection = getWeaponCollectionBonus();
   const baseStats = computeBaseStats(player.level, combinedBonus);
   const powerSamples = weaponPool.map(weaponEntry => {
     let merged = applyWeaponStats(baseStats, weaponEntry);
@@ -494,16 +493,6 @@ export function renderMainScreen() {
       }).join('')
     : '<li class="muted">Aucun serment.</li>';
 
-  const collectionTotalLine = formatBonusStats(weaponCollection.stats);
-  const collectionPerWeaponLine = formatBonusStats(weaponCollection.perWeapon);
-  const combinedPercentsLine = formatBonusPercents(combinedPercents);
-  const collectionSetsLine = weaponCollection.sets.length
-    ? weaponCollection.sets.map(set => {
-        const text = formatBonusStats(set.stats);
-        const cls = set.active ? 'collection-set active' : 'collection-set';
-        return `<span class="${cls}">Palier ${set.count} armes: ${text || 'Aucun bonus'}</span>`;
-      }).join('')
-    : '';
 
   const familyTotalLine = formatBonusPercents(familySummary.totalBonus);
   const familyTiles = familySummary.families.length
@@ -632,19 +621,6 @@ export function renderMainScreen() {
               }).join(' ')}
             </strong>
             <span class="muted">${ownedWeapons.length ? 'Utilise une arme au hasard en combat.' : 'Aucune arme, utilise les poings.'}</span>
-          </div>
-          <div class="collection-line">
-            <div class="collection-header">
-              <span class="collection-title">Bonus collection</span>
-              <span class="collection-count">${weaponCollection.count} armes</span>
-            </div>
-            <div class="collection-row"><strong>Total</strong><span>${collectionTotalLine || 'Aucun bonus'}</span></div>
-            <div class="collection-row"><strong>Total %</strong><span>${combinedPercentsLine || 'Aucun'}</span></div>
-            <div class="collection-row"><strong>Par arme</strong><span>${collectionPerWeaponLine || 'Aucun'}</span></div>
-            <div class="collection-sets">
-              ${collectionSetsLine || '<span class="collection-empty muted">Aucun palier actif.</span>'}
-            </div>
-            <div class="collection-hint muted small">Les bonus de collection s'ajoutent automatiquement a tes stats.</div>
           </div>
           <div class="power-line">Puissance totale: ${playerPower}</div>
         </section>

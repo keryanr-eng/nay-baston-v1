@@ -1071,10 +1071,6 @@ function getCombinedBonusStats(player) {
   Object.keys(combined).forEach(key => {
     combined[key] = (run[key] || 0) + (perm[key] || 0);
   });
-  const collection = computeWeaponCollectionBonus(player).stats;
-  Object.keys(combined).forEach(key => {
-    combined[key] += collection[key] || 0;
-  });
   return combined;
 }
 
