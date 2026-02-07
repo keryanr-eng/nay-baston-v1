@@ -1,4 +1,4 @@
-import { getPlayerState, getPlayerCombatProfile, getSettings, updateSettings, getTalentById, getTalentDescription, getWeaponById, getWeaponEffectiveModifiers, getWeaponBaseDamage, xpToNext, getPendingRewards, getPendingEvent, getOwnedWeapons, getOwnedTalents, getOwnedRelics, getRunModifiers, getRelicById, getModifierById, getNextEnemyPreview, getDefaultWeapon, computeBaseStats, applyWeaponStats, applyTalentPassives, applyRelicPassives, applyRunModifiers, applySynergyPassives, getOwnedBonusStats, getOwnedBonusPercents, getWeaponCollectionBonus, applyEventChoice } from './player.js';
+import { getPlayerState, getPlayerCombatProfile, getSettings, updateSettings, getTalentById, getTalentDescription, getWeaponById, getWeaponEffectiveModifiers, getWeaponBaseDamage, xpToNext, getPendingRewards, getPendingEvent, getOwnedWeapons, getOwnedTalents, getOwnedRelics, getRunModifiers, getRelicById, getModifierById, getNextEnemyPreview, getDefaultWeapon, computeBaseStats, applyWeaponStats, applyTalentPassives, applyRelicPassives, applyRunModifiers, applySynergyPassives, getOwnedBonusStats, getOwnedBonusPercents, getWeaponCollectionBonus, applyEventChoice, getTalentFamilySummary } from './player.js';
 
 const FX_TIMERS = {
   A: {},
@@ -454,6 +454,7 @@ export function renderMainScreen() {
   });
   const ownedTalents = getOwnedTalents();
   const combinedTalents = ownedTalents;
+  const familySummary = getTalentFamilySummary(combinedTalents);
   const ownedRelics = getOwnedRelics();
   const runModifiers = getRunModifiers();
   const combinedBonus = getOwnedBonusStats();
@@ -503,6 +504,45 @@ export function renderMainScreen() {
         return `<span class="${cls}">Palier ${set.count} armes: ${text || 'Aucun bonus'}</span>`;
       }).join('')
     : '';
+
+  const familyTotalLine = formatBonusPercents(familySummary.totalBonus);
+  const familyTiles = familySummary.families.length
+    ? familySummary.families.map(family => {
+        const maxCount = family.maxCount || family.talents.length;
+        const nextTier = family.nextTier;
+        const targetCount = nextTier ? nextTier.count : maxCount;
+        const progress = Math.min(1, family.count / targetCount) * 100;
+        const activeBonus = formatBonusPercents(family.bonus) || 'Aucun bonus';
+        const nextBonus = nextTier ? (formatBonusPercents(nextTier.bonus) || 'Aucun bonus') : 'Palier max atteint';
+        const tierCounts = family.tiers.map(tier => tier.count).join(' / ');
+        const tierItems = family.tiers.map(tier => {
+          const bonus = formatBonusPercents(tier.bonus) || 'Aucun bonus';
+          const cls = family.count >= tier.count ? 'family-tier active' : 'family-tier';
+          return `<div class="${cls}"><span>Palier ${tier.count}/${maxCount}</span><strong>${bonus}</strong></div>`;
+        }).join('');
+        const pips = family.tiers.map(tier => {
+          const cls = family.count >= tier.count ? 'family-pip active' : 'family-pip';
+          return `<span class="${cls}"></span>`;
+        }).join('');
+        const displayCount = nextTier ? `${family.count}/${targetCount}` : `${family.count}/${maxCount}`;
+        const nextLabel = nextTier ? `Palier ${nextTier.count}: ${nextBonus}` : nextBonus;
+        return `
+          <div class="family-tile" data-family="${family.id}">
+            <div class="family-top">
+              <span class="family-icon" data-family="${family.id}" aria-hidden="true"></span>
+              <span class="family-name">${family.name}</span>
+              <span class="family-count">${displayCount}</span>
+            </div>
+            <div class="family-bar"><span style="width:${progress}%"></span></div>
+            <div class="family-pips">${pips}</div>
+            ${''}
+            <div class="family-tooltip">
+              ${tierItems}
+            </div>
+          </div>
+        `;
+      }).join('')
+    : '<div class="muted">Aucune famille active.</div>';
 
   const historyItems = player.history.length
     ? player.history.map(item => {
@@ -612,6 +652,13 @@ export function renderMainScreen() {
         <section class="card">
           <h3>Talents</h3>
           <ul class="list">${talents}</ul>
+        </section>
+        <section class="card families-card">
+          <h3>Familles</h3>
+          <div class="family-total">Bonus totaux: ${familyTotalLine || 'Aucun'}</div>
+          <div class="family-grid">
+            ${familyTiles}
+          </div>
         </section>
         <section class="card">
           <h3>Reliques</h3>

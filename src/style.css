@@ -16,6 +16,209 @@
   --ember-strong: rgba(255, 140, 90, 0.45);
 }
 
+/* Families */
+.families-card {
+  position: relative;
+}
+
+.family-total {
+  margin-bottom: 10px;
+  font-weight: 600;
+}
+
+.family-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.family-tile {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  padding: 12px 14px;
+  background: rgba(0, 0, 0, 0.22);
+}
+
+.family-top {
+  display: grid;
+  grid-template-columns: 26px 1fr auto;
+  align-items: center;
+  gap: 8px;
+}
+
+.family-name {
+  font-weight: 600;
+}
+
+.family-count {
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.family-icon {
+  width: 22px;
+  height: 22px;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: contain;
+  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.35));
+}
+
+.family-bar {
+  height: 6px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.08);
+  margin: 8px 0 6px;
+}
+
+.family-bar span {
+  display: block;
+  height: 100%;
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.family-pips {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.family-pip {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.family-pip.active {
+  background: rgba(255, 255, 255, 0.38);
+}
+
+.family-line {
+  display: grid;
+  grid-template-columns: 64px 1fr;
+  gap: 6px;
+  font-size: 0.82rem;
+  line-height: 1.3;
+}
+
+.family-label {
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.family-value {
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.family-line.muted .family-value {
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.family-line.unlocked .family-label,
+.family-line.unlocked .family-value {
+  color: #fff2d1;
+  font-weight: 700;
+}
+
+.family-tooltip {
+  margin-top: 10px;
+  padding: 10px 12px;
+  border-top: 1px dashed rgba(255, 255, 255, 0.16);
+  background: rgba(10, 6, 14, 0.68);
+  border-radius: 12px;
+  box-shadow: 0 10px 22px rgba(0, 0, 0, 0.35);
+  display: grid;
+  gap: 6px;
+  font-size: 0.75rem;
+  max-height: 0;
+  opacity: 0;
+  overflow: hidden;
+  transition: max-height 0.2s ease, opacity 0.2s ease;
+}
+
+.family-tile:hover .family-tooltip {
+  max-height: 220px;
+  opacity: 1;
+}
+
+.family-tier {
+  display: grid;
+  grid-template-columns: 120px 1fr;
+  gap: 6px;
+  color: rgba(255, 255, 255, 0.42);
+}
+
+.family-tier strong {
+  color: rgba(255, 255, 255, 0.55);
+  font-weight: 600;
+}
+
+.family-tier.active {
+  color: #ffffff;
+  text-shadow: 0 0 10px rgba(255, 214, 140, 0.45);
+}
+
+.family-tier.active strong {
+  color: #fff5db;
+  text-shadow: 0 0 12px rgba(255, 214, 140, 0.55);
+}
+
+.family-tile[data-family="assassin"] .family-bar span,
+.family-tile[data-family="assassin"] .family-pip.active {
+  background: rgba(80, 170, 255, 0.5);
+}
+
+.family-icon[data-family="assassin"] {
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%234aa3ff'><polygon points='12,2 22,12 12,22 2,12'/></svg>");
+}
+
+.family-tile[data-family="berserker"] .family-bar span,
+.family-tile[data-family="berserker"] .family-pip.active {
+  background: rgba(255, 90, 90, 0.5);
+}
+
+.family-icon[data-family="berserker"] {
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23e85b5b'><polygon points='12,2 21,7 21,17 12,22 3,17 3,7'/></svg>");
+}
+
+.family-tile[data-family="bastion"] .family-bar span,
+.family-tile[data-family="bastion"] .family-pip.active {
+  background: rgba(240, 200, 90, 0.55);
+}
+
+.family-icon[data-family="bastion"] {
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23f2c45b'><path d='M12 2l8 4v6c0 5-4 8-8 10-4-2-8-5-8-10V6l8-4z'/></svg>");
+}
+
+.family-tile[data-family="sentinel"] .family-bar span,
+.family-tile[data-family="sentinel"] .family-pip.active {
+  background: rgba(125, 220, 125, 0.55);
+}
+
+.family-icon[data-family="sentinel"] {
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%237ddc7d'><circle cx='12' cy='12' r='9'/></svg>");
+}
+
+.family-tile[data-family="reaper"] .family-bar span,
+.family-tile[data-family="reaper"] .family-pip.active {
+  background: rgba(170, 120, 255, 0.55);
+}
+
+.family-icon[data-family="reaper"] {
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%239d6bff'><polygon points='12,2 21,9 17,22 7,22 3,9'/></svg>");
+}
+
+.family-tile[data-family="arsenal"] .family-bar span,
+.family-tile[data-family="arsenal"] .family-pip.active {
+  background: rgba(255, 150, 60, 0.55);
+}
+
+.family-icon[data-family="arsenal"] {
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23f2a23b'><polygon points='8,2 16,2 22,8 22,16 16,22 8,22 2,16 2,8'/></svg>");
+}
+
 * {
   box-sizing: border-box;
 }
