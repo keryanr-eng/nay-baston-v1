@@ -1,5 +1,5 @@
-import { renderMainScreen, renderLevelUpChoices } from './game/ui.js';
 import { startCombat } from './game/combat.js';
+import { renderMainScreen, renderLevelUpChoices } from './game/ui.js';
 import { importSeed, resetPlayer, getPendingRewards, applyRewardChoice, applyEventChoice, resetAfterDeath, shouldPromptForName, setPlayerName, getPlayerState } from './game/player.js';
 
 function wireMainScreen() {

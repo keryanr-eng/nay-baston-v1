@@ -31,6 +31,47 @@ const WEAPON_SWITCH_BASE = 0.18;
 const WEAPON_SWITCH_STEP = 0.18;
 const WEAPON_SWITCH_MAX = 0.85;
 const WEAPON_SWAP_DELAY_MS = 320;
+const RARITY_RANK = { common: 1, uncommon: 2, rare: 3, epic: 4, legendary: 5, ultimate: 6 };
+
+function parseTalentKey(id) {
+  if (!id) return { baseId: '', rank: 0 };
+  const parts = String(id).split(':');
+  const baseId = parts[0];
+  const rankRaw = Number(parts[1]) || 1;
+  const rank = Math.max(1, Math.min(3, rankRaw));
+  return { baseId, rank };
+}
+
+function getTalentIdFromList(list, baseId) {
+  let best = null;
+  let bestRank = 0;
+  (list || []).forEach(id => {
+    const parsed = parseTalentKey(id);
+    if (parsed.baseId === baseId && parsed.rank > bestRank) {
+      bestRank = parsed.rank;
+      best = id;
+    }
+  });
+  return best;
+}
+
+function hasTalent(list, baseId) {
+  return !!getTalentIdFromList(list, baseId);
+}
+
+function getTalentValue(list, baseId, baseValue) {
+  const id = getTalentIdFromList(list, baseId);
+  return id ? getTalentScaledValue(id, baseValue) : 0;
+}
+
+function clampChance(value, max = 0.8) {
+  return Math.max(0, Math.min(max, value));
+}
+
+function getWeaponRarityRank(weaponInstance, weaponDef) {
+  const rarity = weaponInstance?.rarity || weaponDef?.rarity || 'common';
+  return RARITY_RANK[rarity] || 1;
+}
 
 function describeTalent(id) {
   const talent = getTalentById(id);
@@ -39,10 +80,15 @@ function describeTalent(id) {
 
 function createCombatant(profile, weaponPool = null) {
   const fallbackWeapon = getDefaultWeapon();
+  const talents = profile.talents || [];
+  const initBonus = hasTalent(talents, 'anticipation')
+    ? Math.max(1, Math.round(getTalentValue(talents, 'anticipation', 20)))
+    : 0;
+  const barrierCharges = hasTalent(talents, 'barrier') ? 2 : 0;
   return {
     name: profile.name,
     level: profile.level,
-    talents: profile.talents || [],
+    talents,
     weapon: profile.weapon || null,
     weaponPool: Array.isArray(weaponPool) ? weaponPool.slice() : null,
     baseStats: { ...profile.stats },
@@ -57,8 +103,26 @@ function createCombatant(profile, weaponPool = null) {
     crit: profile.stats.crit,
     dodge: profile.stats.dodge,
     precision: profile.stats.precision || 0,
-    init: 0,
-    firstStrikeReady: true
+    init: initBonus,
+    firstStrikeReady: true,
+    attacksMade: 0,
+    hitStreak: 0,
+    missStreak: 0,
+    comboStacks: 0,
+    momentumStacks: 0,
+    momentumReady: false,
+    surgeReady: false,
+    lastMissed: false,
+    armorStacks: 0,
+    barrierCharges,
+    bleedTurns: 0,
+    bleedDamage: 0,
+    defBreakTurns: 0,
+    defBreakValue: 0,
+    safeTurns: 0,
+    tookDamage: false,
+    rhythmStacks: 0,
+    secondChanceUsed: false
   };
 }
 
@@ -118,23 +182,98 @@ function getAttackStats(attacker, weapon) {
   return applyWeaponStats(base, weapon);
 }
 
-function calculateDamage(attacker, defenderDef, weaponInstance) {
+function calculateDamage(attacker, defender, defenderDef, weaponInstance) {
   const weaponId = weaponInstance?.id || getDefaultWeapon().id;
   const weaponDef = weaponId === 'fists' ? getDefaultWeapon() : getWeaponById(weaponId);
   const weaponBase = getWeaponBaseDamage(weaponDef, weaponInstance?.rarity || weaponDef?.rarity);
-  let damage = Math.max(1, Math.round(attacker.atk + weaponBase - defenderDef * 0.6));
+  let effectiveDef = defenderDef;
+  if (hasTalent(attacker.talents, 'pierce')) {
+    const piercePct = clampChance(getTalentValue(attacker.talents, 'pierce', 0.15), 0.7);
+    effectiveDef = Math.max(0, effectiveDef * (1 - piercePct));
+  }
+  const effectiveAtk = Math.max(1, attacker.atk);
+  const baseHit = Math.max(1, attacker.atk + weaponBase);
+  const mitigation = effectiveAtk / Math.max(1, effectiveAtk + effectiveDef);
+  let damage = Math.max(1, Math.round(baseHit * mitigation));
 
-  if (attacker.talents.includes('berserk')) {
-    if (attacker.hp / attacker.maxHp < 0.35) {
-      damage = Math.round(damage * (1 + getTalentScaledValue('berserk', 0.25)));
+  if (hasTalent(attacker.talents, 'assault') && attacker.attacksMade < 2) {
+    damage = Math.round(damage * (1 + getTalentValue(attacker.talents, 'assault', 0.2)));
+  }
+
+  if (hasTalent(attacker.talents, 'execution')) {
+    const hpRatio = defender.hp / Math.max(1, defender.maxHp);
+    if (hpRatio < 0.3) {
+      damage = Math.round(damage * (1 + getTalentValue(attacker.talents, 'execution', 0.25)));
     }
   }
 
-  if (attacker.talents.includes('firstblood') && attacker.firstStrikeReady) {
-    damage = Math.round(damage * (1 + getTalentScaledValue('firstblood', 0.35)));
+  if (hasTalent(attacker.talents, 'combo') && attacker.comboStacks > 0) {
+    const comboBonus = getTalentValue(attacker.talents, 'combo', 0.05);
+    damage = Math.round(damage * (1 + comboBonus * Math.min(5, attacker.comboStacks)));
   }
 
-  const isCrit = Math.random() < attacker.crit;
+  if (hasTalent(attacker.talents, 'momentum') && attacker.momentumReady) {
+    damage = Math.round(damage * (1 + getTalentValue(attacker.talents, 'momentum', 0.2)));
+    attacker.momentumReady = false;
+  }
+
+  if (hasTalent(attacker.talents, 'surge') && attacker.surgeReady) {
+    damage = Math.round(damage * (1 + getTalentValue(attacker.talents, 'surge', 0.15)));
+    attacker.surgeReady = false;
+  }
+
+  if (hasTalent(attacker.talents, 'opportunist') && defender.lastMissed) {
+    damage = Math.round(damage * (1 + getTalentValue(attacker.talents, 'opportunist', 0.2)));
+    defender.lastMissed = false;
+  }
+
+  if (hasTalent(attacker.talents, 'sharpened')) {
+    const rank = getWeaponRarityRank(weaponInstance, weaponDef);
+    if (rank >= RARITY_RANK.rare) {
+      damage = Math.round(damage * (1 + getTalentValue(attacker.talents, 'sharpened', 0.1)));
+    }
+  }
+
+  if (hasTalent(attacker.talents, 'arsenal')) {
+    const count = Math.max(1, attacker.weaponPool ? attacker.weaponPool.length : 1);
+    const per = getTalentValue(attacker.talents, 'arsenal', 0.02);
+    const bonus = Math.min(0.1, per * count);
+    if (bonus > 0) {
+      damage = Math.round(damage * (1 + bonus));
+    }
+  }
+
+  if (hasTalent(attacker.talents, 'carnage')) {
+    const levelBonus = Math.floor(attacker.level / 10);
+    if (levelBonus > 0) {
+      damage = Math.round(damage * (1 + getTalentValue(attacker.talents, 'carnage', 0.02) * levelBonus));
+    }
+  }
+
+  if (hasTalent(attacker.talents, 'berserk')) {
+    if (attacker.hp / attacker.maxHp < 0.35) {
+      damage = Math.round(damage * (1 + getTalentValue(attacker.talents, 'berserk', 0.25)));
+    }
+  }
+
+  if (hasTalent(attacker.talents, 'firstblood') && attacker.firstStrikeReady) {
+    damage = Math.round(damage * (1 + getTalentValue(attacker.talents, 'firstblood', 0.35)));
+  }
+
+  let critChance = attacker.crit;
+  if (hasTalent(attacker.talents, 'lethal_precision')) {
+    if ((attacker.precision || 0) > (defender.dodge || 0)) {
+      critChance += getTalentValue(attacker.talents, 'lethal_precision', 0.1);
+    }
+  }
+  if (hasTalent(attacker.talents, 'relentless') && attacker.missStreak > 0) {
+    critChance += getTalentValue(attacker.talents, 'relentless', 0.08);
+  }
+  if (hasTalent(attacker.talents, 'cold_focus') && attacker.safeTurns >= 2) {
+    critChance += getTalentValue(attacker.talents, 'cold_focus', 0.1);
+  }
+  critChance = Math.min(0.95, Math.max(0, critChance));
+  const isCrit = Math.random() < critChance;
   if (isCrit) {
     damage = Math.round(damage * 1.7);
   }
@@ -145,12 +284,12 @@ function calculateDamage(attacker, defenderDef, weaponInstance) {
 function applyOnHitEffects(attacker, defender, damage, log) {
   let heal = 0;
   let reflect = 0;
-  if (attacker.talents.includes('firstblood')) {
+  if (hasTalent(attacker.talents, 'firstblood')) {
     attacker.firstStrikeReady = false;
   }
 
-  if (attacker.talents.includes('lifesteal')) {
-    heal = Math.max(1, Math.round(damage * getTalentScaledValue('lifesteal', 0.2)));
+  if (hasTalent(attacker.talents, 'lifesteal')) {
+    heal = Math.max(1, Math.round(damage * getTalentValue(attacker.talents, 'lifesteal', 0.2)));
     const before = attacker.hp;
     attacker.hp = Math.min(attacker.maxHp, attacker.hp + heal);
     const applied = attacker.hp - before;
@@ -162,31 +301,166 @@ function applyOnHitEffects(attacker, defender, damage, log) {
     heal = 0;
   }
 
-  if (defender.talents.includes('thorns') && damage > 0) {
-    reflect = Math.max(1, Math.round(damage * getTalentScaledValue('thorns', 0.2)));
+  if (hasTalent(attacker.talents, 'siphon')) {
+    const extra = Math.max(1, Math.round(damage * getTalentValue(attacker.talents, 'siphon', 0.08)));
+    const before = attacker.hp;
+    attacker.hp = Math.min(attacker.maxHp, attacker.hp + extra);
+    const applied = attacker.hp - before;
+    if (applied > 0) {
+      log.push(`${attacker.name} siphonne ${applied} PV.`);
+    }
+    heal += applied;
+  }
+
+  if (hasTalent(defender.talents, 'thorns') && damage > 0) {
+    reflect = Math.max(1, Math.round(damage * getTalentValue(defender.talents, 'thorns', 0.2)));
     attacker.hp -= reflect;
+    attacker.tookDamage = true;
     log.push(`${defender.name} renvoie ${reflect} degats a ${attacker.name}.`);
+  }
+
+  if (hasTalent(defender.talents, 'counter') && damage > 0) {
+    const chance = clampChance(getTalentValue(defender.talents, 'counter', 0.1), 0.6);
+    if (Math.random() < chance) {
+      const reflected = Math.max(1, Math.round(damage * getTalentValue(defender.talents, 'counter', 0.3)));
+      attacker.hp -= reflected;
+      attacker.tookDamage = true;
+      reflect += reflected;
+      log.push(`${defender.name} contre-attaque (${reflected}).`);
+    }
   }
   return { heal, reflect };
 }
 
+function applyDefenderMitigation(attacker, defender, damage, isCrit, log) {
+  let final = damage;
+  const hpRatio = defender.hp / Math.max(1, defender.maxHp);
+
+  if (hasTalent(defender.talents, 'resilience') && hpRatio < 0.4) {
+    final *= 1 - getTalentValue(defender.talents, 'resilience', 0.15);
+  }
+  if (hasTalent(defender.talents, 'anchor') && defender.spd < attacker.spd) {
+    final *= 1 - getTalentValue(defender.talents, 'anchor', 0.1);
+  }
+  if (hasTalent(defender.talents, 'iron_will') && hpRatio > 0.8) {
+    final *= 1 - getTalentValue(defender.talents, 'iron_will', 0.1);
+  }
+  if (hasTalent(defender.talents, 'guardian') && defender.hp < attacker.hp) {
+    final *= 1 - getTalentValue(defender.talents, 'guardian', 0.1);
+  }
+  if (defender.barrierCharges > 0) {
+    final *= 1 - getTalentValue(defender.talents, 'barrier', 0.25);
+    defender.barrierCharges = Math.max(0, defender.barrierCharges - 1);
+  }
+  if (hasTalent(defender.talents, 'parry')) {
+    const chance = clampChance(getTalentValue(defender.talents, 'parry', 0.1), 0.6);
+    if (Math.random() < chance) {
+      final *= 0.5;
+      log.push(`${defender.name} pare le coup.`);
+    }
+  }
+  if (hasTalent(defender.talents, 'stoic') && isCrit) {
+    final *= 1 - getTalentValue(defender.talents, 'stoic', 0.3);
+  }
+
+  final = Math.max(1, Math.round(final));
+
+  if (hasTalent(defender.talents, 'second_chance') && !defender.secondChanceUsed && final >= defender.hp) {
+    defender.secondChanceUsed = true;
+    final = Math.max(0, defender.hp - 1);
+    log.push(`${defender.name} refuse de tomber.`);
+  }
+
+  return final;
+}
+
 function performAttack(attacker, defender, log, defenderStats = null) {
-  const defValue = defenderStats?.def ?? defender.def;
-  const dodgeValue = defenderStats?.dodge ?? defender.dodge;
-  const effectiveDodge = Math.max(0, (dodgeValue || 0) - (attacker.precision || 0));
+  let defValue = defenderStats?.def ?? defender.def;
+  const armorStackValue = hasTalent(defender.talents, 'living_armor')
+    ? Math.max(1, Math.round(getTalentValue(defender.talents, 'living_armor', 2)))
+    : 0;
+  if (armorStackValue && defender.armorStacks > 0) {
+    defValue += defender.armorStacks * armorStackValue;
+  }
+  if (defender.defBreakTurns > 0) {
+    defValue *= 1 - defender.defBreakValue;
+    defender.defBreakTurns = Math.max(0, defender.defBreakTurns - 1);
+  }
+
+  let dodgeValue = defenderStats?.dodge ?? defender.dodge;
+  if (hasTalent(defender.talents, 'instinct') && defender.hp / Math.max(1, defender.maxHp) < 0.3) {
+    dodgeValue += getTalentValue(defender.talents, 'instinct', 0.1);
+  }
+  let precision = attacker.precision || 0;
+  if (hasTalent(attacker.talents, 'mastery') && attacker.weaponStreak >= 2) {
+    precision += getTalentValue(attacker.talents, 'mastery', 0.08);
+  }
+  const effectiveDodge = Math.max(0, (dodgeValue || 0) - precision);
   if (Math.random() < effectiveDodge) {
     log.push(`${attacker.name} rate son attaque.`);
-    if (attacker.talents.includes('firstblood')) {
+    if (hasTalent(attacker.talents, 'firstblood')) {
       attacker.firstStrikeReady = false;
+    }
+    attacker.lastMissed = true;
+    attacker.missStreak += 1;
+    attacker.hitStreak = 0;
+    attacker.comboStacks = 0;
+    attacker.momentumStacks = 0;
+    if (hasTalent(defender.talents, 'surge')) {
+      defender.surgeReady = true;
     }
     return { outcome: 'dodge' };
   }
 
-  const { damage, isCrit } = calculateDamage(attacker, defValue, attacker.currentWeapon || attacker.weapon);
-  defender.hp -= damage;
-  log.push(`${attacker.name} inflige ${damage} degats a ${defender.name}.`);
-  const effects = applyOnHitEffects(attacker, defender, damage, log);
-  return { outcome: 'hit', damage, isCrit, ...effects };
+  const { damage, isCrit } = calculateDamage(attacker, defender, defValue, attacker.currentWeapon || attacker.weapon);
+  const finalDamage = applyDefenderMitigation(attacker, defender, damage, isCrit, log);
+  defender.hp -= finalDamage;
+  defender.tookDamage = true;
+  log.push(`${attacker.name} inflige ${finalDamage} degats a ${defender.name}.`);
+
+  attacker.attacksMade += 1;
+  attacker.lastMissed = false;
+  attacker.missStreak = 0;
+  attacker.hitStreak += 1;
+  attacker.comboStacks = Math.min(5, attacker.hitStreak);
+
+  if (hasTalent(attacker.talents, 'momentum')) {
+    attacker.momentumStacks += 1;
+    if (attacker.momentumStacks >= 3) {
+      attacker.momentumReady = true;
+      attacker.momentumStacks = 0;
+    }
+  }
+  if (hasTalent(attacker.talents, 'rhythm') && attacker.attacksMade % 3 === 0 && attacker.rhythmStacks < 3) {
+    attacker.rhythmStacks += 1;
+    attacker.spd += Math.max(1, Math.round(getTalentValue(attacker.talents, 'rhythm', 3)));
+    log.push(`${attacker.name} accelere.`);
+  }
+
+  if (hasTalent(attacker.talents, 'bleed')) {
+    const chance = clampChance(getTalentValue(attacker.talents, 'bleed', 0.15), 0.7);
+    if (Math.random() < chance) {
+      defender.bleedTurns = 2;
+      defender.bleedDamage = Math.max(1, Math.round(defender.maxHp * getTalentValue(attacker.talents, 'bleed', 0.04)));
+      log.push(`${defender.name} saigne.`);
+    }
+  }
+
+  if (hasTalent(attacker.talents, 'bonecrusher')) {
+    const chance = clampChance(getTalentValue(attacker.talents, 'bonecrusher', 0.2), 0.7);
+    if (Math.random() < chance) {
+      defender.defBreakTurns = 1;
+      defender.defBreakValue = clampChance(getTalentValue(attacker.talents, 'bonecrusher', 0.2), 0.6);
+      log.push(`${defender.name} est fracture.`);
+    }
+  }
+
+  if (hasTalent(defender.talents, 'living_armor') && finalDamage > 0) {
+    defender.armorStacks = Math.min(10, defender.armorStacks + 1);
+  }
+
+  const effects = applyOnHitEffects(attacker, defender, finalDamage, log);
+  return { outcome: 'hit', damage: finalDamage, isCrit, ...effects };
 }
 
 function selectActor(a, b) {
@@ -317,6 +591,21 @@ function getCritShakeLevel(damage, maxHp) {
   return null;
 }
 
+function applyStartOfTurnEffects(actor, log) {
+  let took = actor.tookDamage;
+  if (actor.bleedTurns > 0) {
+    const bleed = Math.max(1, Math.round(actor.bleedDamage));
+    actor.hp -= bleed;
+    actor.bleedTurns = Math.max(0, actor.bleedTurns - 1);
+    if (bleed > 0) {
+      log.push(`${actor.name} subit ${bleed} degats de saignement.`);
+      took = true;
+    }
+  }
+  actor.safeTurns = took ? 0 : actor.safeTurns + 1;
+  actor.tookDamage = false;
+}
+
 export async function startCombat() {
   const defaultWeaponId = getDefaultWeapon().id;
   const ownedWeapons = getOwnedWeapons();
@@ -356,6 +645,8 @@ export async function startCombat() {
     let actor = selectActor(player, enemy);
     while (actor && player.hp > 0 && enemy.hp > 0) {
       if (actor === player) {
+        applyStartOfTurnEffects(player, log);
+        if (player.hp <= 0) break;
         player.init -= 100;
         playCombatFx('A', 'acting');
         const weapon = pickWeaponForAttack(player);
@@ -393,6 +684,8 @@ export async function startCombat() {
           if (result.reflect) playCombatFx('A', 'thorns', result.reflect);
         }
       } else {
+        applyStartOfTurnEffects(enemy, log);
+        if (enemy.hp <= 0) break;
         enemy.init -= 100;
         playCombatFx('B', 'acting');
         const enemyWeapon = pickWeaponForAttack(enemy);

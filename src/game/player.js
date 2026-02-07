@@ -60,8 +60,108 @@ const TALENTS = [
   { id: 'duelist', name: 'Duelist', rarity: 'epic', desc: '+2 SPD et +6% CRIT.' },
   { id: 'lifesteal', name: 'Lifesteal', rarity: 'legendary', desc: 'Recupere 20% des degats infliges.' },
   { id: 'firstblood', name: 'FirstBlood', rarity: 'epic', desc: 'Premier coup +35% degats.' },
-  { id: 'lucky', name: 'Lucky', rarity: 'ultimate', desc: '+5% CRIT et +5% DODGE.' }
+  { id: 'lucky', name: 'Lucky', rarity: 'ultimate', desc: '+5% CRIT et +5% DODGE.' },
+  { id: 'pierce', name: 'Perce-Armure', rarity: 'rare', desc: 'Ignore une partie de la DEF.' },
+  { id: 'execution', name: 'Execution', rarity: 'epic', desc: 'Plus de degats sur cibles faibles.' },
+  { id: 'combo', name: 'Combo', rarity: 'rare', desc: 'Degats en chaine sur coups consecutifs.' },
+  { id: 'bonecrusher', name: 'Brise-Os', rarity: 'epic', desc: 'Chance de fracturer la DEF adverse.' },
+  { id: 'assault', name: 'Assaut', rarity: 'uncommon', desc: 'Bonus aux premiers coups.' },
+  { id: 'bleed', name: 'Saignement', rarity: 'rare', desc: 'Chance d infliger un saignement.' },
+  { id: 'lethal_precision', name: 'Precision Letale', rarity: 'rare', desc: 'CRIT bonus si PREC > DODGE.' },
+  { id: 'carnage', name: 'Carnage', rarity: 'legendary', desc: 'Degats qui montent avec les niveaux.' },
+  { id: 'momentum', name: 'Momentum', rarity: 'epic', desc: 'Apres 3 hits, gros coup bonus.' },
+  { id: 'sharpened', name: 'Aiguise', rarity: 'uncommon', desc: 'Degats bonus avec une arme rare.' },
+  { id: 'opportunist', name: 'Opportuniste', rarity: 'uncommon', desc: 'Bonus si l ennemi rate son coup.' },
+  { id: 'surge', name: 'Surge', rarity: 'uncommon', desc: 'Bonus apres une esquive.' },
+  { id: 'resilience', name: 'Resilience', rarity: 'rare', desc: 'Reduit les degats a bas PV.' },
+  { id: 'parry', name: 'Parade', rarity: 'uncommon', desc: 'Chance de reduire un coup.' },
+  { id: 'living_armor', name: 'Armure Vivante', rarity: 'epic', desc: 'DEF qui monte quand tu prends des coups.' },
+  { id: 'barrier', name: 'Barriere', rarity: 'rare', desc: 'Protection sur les premiers coups.' },
+  { id: 'stoic', name: 'Stoique', rarity: 'rare', desc: 'Les CRITs adverses sont reduits.' },
+  { id: 'second_chance', name: 'Seconde Chance', rarity: 'legendary', desc: 'Survit une fois a 1 PV.' },
+  { id: 'counter', name: 'Contre-Coup', rarity: 'epic', desc: 'Chance de renvoyer des degats.' },
+  { id: 'anchor', name: 'Ancrage', rarity: 'uncommon', desc: 'Moins de degats si plus lent.' },
+  { id: 'iron_will', name: 'Volonte', rarity: 'uncommon', desc: 'Moins de degats a haut PV.' },
+  { id: 'rhythm', name: 'Rythme', rarity: 'rare', desc: 'SPD augmente toutes les 3 attaques.' },
+  { id: 'mastery', name: 'Maitrise', rarity: 'rare', desc: 'PREC bonus si meme arme.' },
+  { id: 'instinct', name: 'Instinct', rarity: 'rare', desc: 'DODGE bonus a bas PV.' },
+  { id: 'anticipation', name: 'Anticipation', rarity: 'common', desc: 'Init bonus au debut du combat.' },
+  { id: 'relentless', name: 'Implacable', rarity: 'uncommon', desc: 'CRIT bonus apres un rate.' },
+  { id: 'cold_focus', name: 'Sang-Froid', rarity: 'epic', desc: 'CRIT bonus sans degats recents.' },
+  { id: 'arsenal', name: 'Arsenal', rarity: 'rare', desc: 'Degats bonus par arme possedee.' },
+  { id: 'siphon', name: 'Sangsue', rarity: 'epic', desc: 'Vol de vie modere.' },
+  { id: 'guardian', name: 'Gardien', rarity: 'uncommon', desc: 'Moins de degats si PV plus bas.' }
 ];
+
+const TALENT_FAMILIES = [
+  {
+    id: 'assassin',
+    name: 'Assassin',
+    talents: ['precision', 'focus', 'ninja', 'fast', 'duelist', 'lethal_precision', 'rhythm', 'anticipation', 'instinct'],
+    tiers: [
+      { count: 3, bonus: { spd: 0.04, precision: 0.04 } },
+      { count: 6, bonus: { crit: 0.08, dodge: 0.06 } },
+      { count: 9, bonus: { spd: 0.1, precision: 0.1, crit: 0.12, dodge: 0.1 } }
+    ]
+  },
+  {
+    id: 'berserker',
+    name: 'Berserker',
+    talents: ['berserk', 'bloodlust', 'firstblood', 'execution', 'combo', 'momentum', 'assault', 'carnage', 'opportunist'],
+    tiers: [
+      { count: 3, bonus: { atk: 0.08 } },
+      { count: 6, bonus: { atk: 0.16, crit: 0.06 } },
+      { count: 9, bonus: { atk: 0.3, crit: 0.12 } }
+    ]
+  },
+  {
+    id: 'bastion',
+    name: 'Bastion',
+    talents: ['tank', 'armor', 'bulwark', 'resilience', 'guardian', 'iron_will', 'anchor'],
+    tiers: [
+      { count: 2, bonus: { hp: 0.06, def: 0.04 } },
+      { count: 5, bonus: { hp: 0.14, def: 0.1 } },
+      { count: 7, bonus: { hp: 0.24, def: 0.16 } }
+    ]
+  },
+  {
+    id: 'sentinel',
+    name: 'Sentinelle',
+    talents: ['parry', 'living_armor', 'barrier', 'stoic', 'second_chance'],
+    tiers: [
+      { count: 1, bonus: { def: 0.03, hp: 0.02 } },
+      { count: 3, bonus: { def: 0.1, hp: 0.06 } },
+      { count: 5, bonus: { def: 0.18, hp: 0.12 } }
+    ]
+  },
+  {
+    id: 'reaper',
+    name: 'Faucheur',
+    talents: ['bleed', 'lifesteal', 'siphon', 'thorns', 'counter', 'lucky', 'cold_focus', 'relentless'],
+    tiers: [
+      { count: 3, bonus: { atk: 0.06, hp: 0.04 } },
+      { count: 6, bonus: { atk: 0.12, hp: 0.08, crit: 0.04 } },
+      { count: 8, bonus: { atk: 0.2, hp: 0.12, crit: 0.08 } }
+    ]
+  },
+  {
+    id: 'arsenal',
+    name: 'Arsenal',
+    talents: ['arsenal', 'sharpened', 'pierce', 'bonecrusher', 'mastery'],
+    tiers: [
+      { count: 1, bonus: { atk: 0.04, precision: 0.04 } },
+      { count: 3, bonus: { atk: 0.1, precision: 0.08, crit: 0.03 } },
+      { count: 5, bonus: { atk: 0.2, precision: 0.14, crit: 0.08 } }
+    ]
+  }
+];
+
+const TALENT_FAMILY_MAP = TALENT_FAMILIES.reduce((map, family) => {
+  family.talents.forEach(id => {
+    map[id] = family.id;
+  });
+  return map;
+}, {});
 
 const WEAPONS = [
   {
@@ -193,6 +293,153 @@ const RARITY_MULTIPLIERS = {
   legendary: 2.1,
   ultimate: 2.8
 };
+
+const TALENT_RANKS = {
+  1: { label: 'I', rarity: 'common', mult: 1 },
+  2: { label: 'II', rarity: 'legendary', mult: RARITY_MULTIPLIERS.legendary },
+  3: { label: 'III', rarity: 'ultimate', mult: RARITY_MULTIPLIERS.ultimate }
+};
+
+function parseTalentKey(id) {
+  if (!id) return { baseId: '', rank: 0 };
+  const parts = String(id).split(':');
+  const baseId = parts[0];
+  const rankRaw = Number(parts[1]) || 1;
+  const rank = Math.max(1, Math.min(3, rankRaw));
+  return { baseId, rank };
+}
+
+function formatTalentKey(baseId, rank = 1) {
+  return `${baseId}:${rank}`;
+}
+
+function getTalentRankLabel(rank) {
+  return TALENT_RANKS[rank]?.label || 'I';
+}
+
+function getTalentRankRarity(rank) {
+  return TALENT_RANKS[rank]?.rarity || 'common';
+}
+
+function getTalentRankMultiplier(rank) {
+  return TALENT_RANKS[rank]?.mult || 1;
+}
+
+function getTalentFamilyId(baseId) {
+  return TALENT_FAMILY_MAP[baseId] || null;
+}
+
+export function getTalentFamilyById(talentId) {
+  const { baseId } = parseTalentKey(talentId);
+  const familyId = getTalentFamilyId(baseId);
+  return TALENT_FAMILIES.find(family => family.id === familyId) || null;
+}
+
+function computeFamilySynergies(talentIds) {
+  const counts = {};
+  const seen = new Set();
+  (talentIds || []).forEach(id => {
+    const { baseId } = parseTalentKey(id);
+    if (!baseId || seen.has(baseId)) return;
+    seen.add(baseId);
+    const familyId = getTalentFamilyId(baseId);
+    if (!familyId) return;
+    counts[familyId] = (counts[familyId] || 0) + 1;
+  });
+
+  const totalBonus = { ...EMPTY_BONUS_PERCENTS };
+  const families = TALENT_FAMILIES.map(family => {
+    const maxCount = family.maxCount || family.talents.length;
+    const count = counts[family.id] || 0;
+    const activeTiers = family.tiers.filter(tier => count >= tier.count);
+    const nextTier = family.tiers.find(tier => count < tier.count) || null;
+    const bonus = { ...EMPTY_BONUS_PERCENTS };
+    activeTiers.forEach(tier => {
+      Object.keys(tier.bonus).forEach(stat => {
+        bonus[stat] = (bonus[stat] || 0) + (tier.bonus[stat] || 0);
+        totalBonus[stat] = (totalBonus[stat] || 0) + (tier.bonus[stat] || 0);
+      });
+    });
+    return {
+      ...family,
+      maxCount,
+      count,
+      activeTiers,
+      nextTier,
+      bonus
+    };
+  });
+
+  return { families, totalBonus };
+}
+
+export function getTalentFamilySummary(talentIds = []) {
+  return computeFamilySynergies(talentIds);
+}
+
+export function applyFamilyPassives(stats, talentIds = []) {
+  const summary = computeFamilySynergies(talentIds);
+  const merged = { ...stats };
+  Object.keys(summary.totalBonus).forEach(key => {
+    const value = summary.totalBonus[key];
+    if (!value) return;
+    merged[key] = (merged[key] || 0) * (1 + value);
+  });
+  return merged;
+}
+
+function getNextTalentRank(currentRank) {
+  return Math.max(1, Math.min(3, (currentRank || 0) + 1));
+}
+
+function getTalentRankFromRarity(rarity) {
+  const normalized = normalizeRarity(rarity);
+  if (normalized === 'ultimate') return 3;
+  if (normalized === 'legendary') return 2;
+  return 1;
+}
+
+function upgradeTalentList(list, talentKey) {
+  const { baseId, rank } = parseTalentKey(talentKey);
+  if (!baseId) return Array.isArray(list) ? [...list] : [];
+  const currentMap = getTalentRankMap(list);
+  const nextRank = Math.max(currentMap[baseId] || 0, rank);
+  const filtered = (list || []).filter(id => parseTalentKey(id).baseId !== baseId);
+  filtered.push(formatTalentKey(baseId, nextRank));
+  return filtered;
+}
+
+function getTalentRankMap(list) {
+  const map = {};
+  (list || []).forEach(id => {
+    const { baseId, rank } = parseTalentKey(id);
+    if (!baseId) return;
+    map[baseId] = Math.max(map[baseId] || 0, rank);
+  });
+  return map;
+}
+
+function getTalentIdFromList(list, baseId) {
+  let best = null;
+  let bestRank = 0;
+  (list || []).forEach(id => {
+    const parsed = parseTalentKey(id);
+    if (parsed.baseId === baseId && parsed.rank > bestRank) {
+      bestRank = parsed.rank;
+      best = id;
+    }
+  });
+  return best;
+}
+
+function hasTalent(list, baseId) {
+  return !!getTalentIdFromList(list, baseId);
+}
+
+function getTalentValueFromList(list, baseId, baseValue) {
+  const id = getTalentIdFromList(list, baseId);
+  return id ? getTalentScaledValue(id, baseValue) : 0;
+}
 
 const WEAPON_RARITY_FLAT_MULTIPLIERS = {
   common: 1,
@@ -704,25 +951,27 @@ export function applyWeaponStats(stats, weaponInput) {
 
 export function applyTalentPassives(stats, talentIds) {
   let merged = { ...stats };
-  if (talentIds.includes('fast')) merged.spd += Math.max(1, Math.round(getTalentScaledValue('fast', 4)));
-  if (talentIds.includes('precision')) merged.precision += getTalentScaledValue('precision', 0.08);
-  if (talentIds.includes('focus')) merged.crit += getTalentScaledValue('focus', 0.08);
-  if (talentIds.includes('ninja')) merged.dodge += getTalentScaledValue('ninja', 0.08);
-  if (talentIds.includes('bloodlust')) merged.atk *= 1 + getTalentScaledValue('bloodlust', 0.12);
-  if (talentIds.includes('bulwark')) {
-    merged.def *= 1 + getTalentScaledValue('bulwark', 0.08);
-    merged.hp *= 1 + getTalentScaledValue('bulwark', 0.06);
+  const has = id => hasTalent(talentIds, id);
+  const value = (id, base) => getTalentValueFromList(talentIds, id, base);
+  if (has('fast')) merged.spd += Math.max(1, Math.round(value('fast', 4)));
+  if (has('precision')) merged.precision += value('precision', 0.08);
+  if (has('focus')) merged.crit += value('focus', 0.08);
+  if (has('ninja')) merged.dodge += value('ninja', 0.08);
+  if (has('bloodlust')) merged.atk *= 1 + value('bloodlust', 0.12);
+  if (has('bulwark')) {
+    merged.def *= 1 + value('bulwark', 0.08);
+    merged.hp *= 1 + value('bulwark', 0.06);
   }
-  if (talentIds.includes('duelist')) {
-    merged.spd += Math.max(1, Math.round(getTalentScaledValue('duelist', 2)));
-    merged.crit += getTalentScaledValue('duelist', 0.06);
+  if (has('duelist')) {
+    merged.spd += Math.max(1, Math.round(value('duelist', 2)));
+    merged.crit += value('duelist', 0.06);
   }
-  if (talentIds.includes('lucky')) {
-    merged.crit += getTalentScaledValue('lucky', 0.05);
-    merged.dodge += getTalentScaledValue('lucky', 0.05);
+  if (has('lucky')) {
+    merged.crit += value('lucky', 0.05);
+    merged.dodge += value('lucky', 0.05);
   }
-  if (talentIds.includes('armor')) merged.def *= 1 + getTalentScaledValue('armor', 0.15);
-  if (talentIds.includes('tank')) merged.hp *= 1 + getTalentScaledValue('tank', 0.2);
+  if (has('armor')) merged.def *= 1 + value('armor', 0.15);
+  if (has('tank')) merged.hp *= 1 + value('tank', 0.2);
   return merged;
 }
 
@@ -771,7 +1020,7 @@ export function applyRunModifiers(stats, modifierIds = []) {
 
 export function applySynergyPassives(stats, talentIds = []) {
   let merged = { ...stats };
-  const has = id => talentIds.includes(id);
+  const has = id => hasTalent(talentIds, id);
   if (has('tank') && has('armor')) {
     merged.def *= 1.08;
     merged.hp *= 1.06;
@@ -796,7 +1045,9 @@ export function applySynergyPassives(stats, talentIds = []) {
 function getCombinedTalents(player) {
   const runTalents = Array.isArray(player.talents) ? player.talents : [];
   const permTalents = Array.isArray(player.permanent?.talents) ? player.permanent.talents : [];
-  return Array.from(new Set([...permTalents, ...runTalents]));
+  const combined = [...permTalents, ...runTalents];
+  const rankMap = getTalentRankMap(combined);
+  return Object.keys(rankMap).map(baseId => formatTalentKey(baseId, rankMap[baseId]));
 }
 
 function getCombinedRelics(player) {
@@ -846,6 +1097,7 @@ function computeMaxPotentialDodge(player) {
   const talents = getCombinedTalents(player);
   let withTalents = applyTalentPassives(baseStats, talents);
   withTalents = applySynergyPassives(withTalents, talents);
+  withTalents = applyFamilyPassives(withTalents, talents);
   withTalents = applyRelicPassives(withTalents, relics);
   const weaponList = getCombinedWeapons(player);
   const list = weaponList.length ? weaponList : [{ id: DEFAULT_WEAPON.id, rarity: DEFAULT_WEAPON.rarity }];
@@ -896,6 +1148,7 @@ export function getPlayerCombatProfile(weaponOverride = null) {
   merged = applyRelicPassives(merged, relics);
   merged = applyTalentPassives(merged, talents);
   merged = applySynergyPassives(merged, talents);
+  merged = applyFamilyPassives(merged, talents);
   merged = applyRunModifiers(merged, modifiers);
   merged = applyPercentBonuses(merged, bonusPercents);
   return {
@@ -1056,7 +1309,37 @@ function createEnemyProfile(level, isBoss) {
     'armor',
     'lifesteal',
     'firstblood',
-    'lucky'
+    'lucky',
+    'pierce',
+    'execution',
+    'combo',
+    'bonecrusher',
+    'assault',
+    'bleed',
+    'lethal_precision',
+    'carnage',
+    'momentum',
+    'sharpened',
+    'opportunist',
+    'surge',
+    'resilience',
+    'parry',
+    'living_armor',
+    'barrier',
+    'stoic',
+    'second_chance',
+    'counter',
+    'anchor',
+    'iron_will',
+    'rhythm',
+    'mastery',
+    'instinct',
+    'anticipation',
+    'relentless',
+    'cold_focus',
+    'arsenal',
+    'siphon',
+    'guardian'
   ];
   const talents = [];
   while (talents.length < talentCount && allTalents.length) {
@@ -1263,20 +1546,36 @@ function buildStatReward(level, excludedStats = []) {
   };
 }
 
-function buildTalentReward(level, owned, excludedIds = new Set()) {
-  const available = TALENTS.filter(t => !owned.includes(t.id) && !excludedIds.has(t.id));
+function buildTalentUpgrade(level, owned, excludedIds = new Set()) {
+  const rankMap = getTalentRankMap(owned);
+  const available = TALENTS.filter(t => !excludedIds.has(t.id) && (rankMap[t.id] || 0) < 3);
   if (!available.length) return null;
-  const rarityPool = getRarityWeights(level).filter(entry => available.some(t => normalizeRarity(t.rarity) === entry.id));
-  const pickRarity = pickWeighted(rarityPool).id;
-  const candidates = available.filter(t => normalizeRarity(t.rarity) === pickRarity);
-  const pick = candidates[Math.floor(Math.random() * candidates.length)];
+  const desiredRank = getTalentRankFromRarity(pickWeighted(getRarityWeights(level)).id);
+  const filtered = available.filter(t => getNextTalentRank(rankMap[t.id] || 0) === desiredRank);
+  const pool = filtered.length ? filtered : available;
+  const pick = pool[Math.floor(Math.random() * pool.length)];
+  const nextRank = getNextTalentRank(rankMap[pick.id] || 0);
+  const talentId = formatTalentKey(pick.id, nextRank);
+  const rankedTalent = getTalentById(talentId);
   return {
-    id: `talent-${pick.id}-${Math.random().toString(36).slice(2, 6)}`,
+    base: pick,
+    talentId,
+    rank: nextRank,
+    rarity: rankedTalent?.rarity || getTalentRankRarity(nextRank),
+    label: rankedTalent?.name || `${pick.name} ${getTalentRankLabel(nextRank)}`
+  };
+}
+
+function buildTalentReward(level, owned, excludedIds = new Set()) {
+  const upgrade = buildTalentUpgrade(level, owned, excludedIds);
+  if (!upgrade) return null;
+  return {
+    id: `talent-${upgrade.base.id}-${Math.random().toString(36).slice(2, 6)}`,
     type: 'talent',
-    talentId: pick.id,
-    rarity: pick.rarity,
-    label: pick.name,
-    desc: getTalentDescription(pick.id)
+    talentId: upgrade.talentId,
+    rarity: upgrade.rarity,
+    label: upgrade.label,
+    desc: getTalentDescription(upgrade.talentId)
   };
 }
 
@@ -1300,7 +1599,8 @@ function buildLevelUpOptions(level) {
   const options = [];
 
   const ownedTalents = getCombinedTalents(player);
-  const talentAvailable = TALENTS.some(t => !ownedTalents.includes(t.id));
+  const ownedRanks = getTalentRankMap(ownedTalents);
+  const talentAvailable = TALENTS.some(t => (ownedRanks[t.id] || 0) < 3);
   const weaponAvailable = WEAPONS.length > 0;
 
   const tier = Math.floor((level - 1) / 5);
@@ -1327,7 +1627,8 @@ function buildLevelUpOptions(level) {
       const reward = buildTalentReward(level, ownedTalents, usedTalents);
       if (!reward) break;
       options.push(reward);
-      usedTalents.add(reward.talentId);
+      const { baseId } = parseTalentKey(reward.talentId);
+      if (baseId) usedTalents.add(baseId);
     }
     if (options.length) return options;
   }
@@ -1381,11 +1682,15 @@ function formatStatChange(stat, value) {
 
 function buildRewardKey(reward) {
   if (!reward) return '';
-  if (reward.type === 'stat') return `stat:${reward.stat}:${reward.value}`;
-  if (reward.type === 'talent') return `talent:${reward.talentId}`;
-  if (reward.type === 'weapon') return `weapon:${reward.weaponId}`;
-  if (reward.type === 'relic') return `relic:${reward.relicId}`;
-  return `${reward.type || 'reward'}`;
+  const rarity = normalizeRarity(reward.rarity || 'common');
+  if (reward.type === 'stat') {
+    const percentFlag = reward.isPercent ? 'pct' : 'flat';
+    return `stat:${reward.stat}:${reward.value}:${percentFlag}:${rarity}`;
+  }
+  if (reward.type === 'talent') return `talent:${reward.talentId}:${rarity}`;
+  if (reward.type === 'weapon') return `weapon:${reward.weaponId}:${rarity}`;
+  if (reward.type === 'relic') return `relic:${reward.relicId}:${rarity}`;
+  return `${reward.type || 'reward'}:${rarity}`;
 }
 
 function createRunReward(data) {
@@ -1413,7 +1718,8 @@ function normalizeStatChanges(statChanges, dodgeCapReached) {
     return {
       stat,
       value: change.value,
-      reward: change.reward ?? change.value > 0
+      reward: change.reward ?? change.value > 0,
+      isPercent: !!change.isPercent
     };
   });
 }
@@ -1525,8 +1831,14 @@ function pickEventWeapon(player, level) {
 
 function pickEventTalent(player, level) {
   const owned = getCombinedTalents(player);
-  const available = TALENTS.filter(t => !owned.includes(t.id));
-  return pickByRarity(available, level);
+  const upgrade = buildTalentUpgrade(level, owned, new Set());
+  if (!upgrade) return null;
+  return {
+    id: upgrade.base.id,
+    talentId: upgrade.talentId,
+    name: upgrade.label,
+    rarity: upgrade.rarity
+  };
 }
 
 function pickOutcome(outcomes) {
@@ -1670,12 +1982,12 @@ function buildScrollEvent(level, player) {
     const statChanges = normalizeStatChanges([
       { stat: 'crit', value: -critCost, reward: false }
     ], dodgeCapReached);
-    const talentDesc = getTalentDescription(talent.id);
+    const talentDesc = getTalentDescription(talent.talentId);
     talentOption = {
       id: 'scroll-talent',
       label: 'Lire le parchemin',
       rarity: normalizeRarity(talent.rarity) || 'rare',
-      talentId: talent.id,
+      talentId: talent.talentId,
       statChanges,
       desc: buildEventDesc(statChanges, [`Talent: ${talent.name} (${talentDesc})`])
     };
@@ -1831,7 +2143,7 @@ function buildMerchantEvent(level, player) {
       id: 'merchant-talent',
       label: 'Signer un contrat',
       rarity: normalizeRarity(talent.rarity) || 'rare',
-      talentId: talent.id,
+      talentId: talent.talentId,
       statChanges: talentCost,
       desc: buildEventDesc(talentCost, [`Talent: ${talent.name}`])
     });
@@ -2100,23 +2412,27 @@ function buildShopEvent(level, player) {
 
 function buildCurseEvent(level, player) {
   const dodgeCapReached = computeMaxPotentialDodge(player) >= DODGE_CAP;
-  const atkGain = scaleEventValue('atk', 4, level, 1.3);
-  const critGain = scaleEventValue('crit', 0.012, level, 1.3);
-  const hpLoss = scaleEventValue('hp', 18, level, 1);
-  const defLoss = scaleEventValue('def', 2, level, 1);
+  const atkGain = scaleEventValue('atk', 6, level, 1.35);
+  const critGain = scaleEventValue('crit', 0.016, level, 1.35);
+  const atkPctGain = scaleEventValue('atk', 0.05, level, 1.1);
+  const hpLoss = scaleEventValue('hp', 10, level, 0.9);
+  const defLoss = scaleEventValue('def', 1, level, 0.9);
   const curseBlood = normalizeStatChanges([
     { stat: 'atk', value: atkGain },
     { stat: 'crit', value: critGain },
+    { stat: 'atk', value: atkPctGain, isPercent: true },
     { stat: 'hp', value: -hpLoss, reward: false },
     { stat: 'def', value: -defLoss, reward: false }
   ], dodgeCapReached);
 
-  const spdGain = scaleEventValue('spd', 3, level, 1.2);
-  const dodgeGain = scaleEventValue('dodge', 0.01, level, 1.2);
-  const atkLoss = scaleEventValue('atk', 2, level, 1);
+  const spdGain = scaleEventValue('spd', 4, level, 1.25);
+  const dodgeGain = scaleEventValue('dodge', 0.013, level, 1.25);
+  const spdPctGain = scaleEventValue('spd', 0.04, level, 1.1);
+  const atkLoss = scaleEventValue('atk', 1, level, 0.9);
   const curseShade = normalizeStatChanges([
     { stat: 'spd', value: spdGain },
     { stat: 'dodge', value: dodgeGain },
+    { stat: 'spd', value: spdPctGain, isPercent: true },
     { stat: 'atk', value: -atkLoss, reward: false }
   ], dodgeCapReached);
 
@@ -2154,8 +2470,20 @@ function buildCurseEvent(level, player) {
 function normalizeEventRarities(event, level) {
   if (!event || !Array.isArray(event.options)) return event;
   const rollRarity = () => pickWeighted(getRarityWeights(level)).id;
+  const isNoRewardOption = option => {
+    const hasDirectReward = !!(option.weaponId || option.talentId || option.relicId || option.modifierId);
+    const changes = Array.isArray(option.statChanges) ? option.statChanges : [];
+    const hasPositiveReward = changes.some(change => change && change.reward && change.value > 0);
+    const outcomes = Array.isArray(option.outcomes) ? option.outcomes : [];
+    const hasOutcomeReward = outcomes.some(outcome => outcome && (outcome.weaponId || outcome.talentId || outcome.relicId || outcome.modifierId || (Array.isArray(outcome.statChanges) && outcome.statChanges.some(change => change && change.reward && change.value > 0))));
+    return !(hasDirectReward || hasPositiveReward || hasOutcomeReward);
+  };
   event.options.forEach(option => {
     if (!option || typeof option !== 'object') return;
+    if (isNoRewardOption(option)) {
+      option.rarity = 'common';
+      return;
+    }
     if (option.rarity) {
       option.rarity = rollRarity();
     }
@@ -2269,9 +2597,7 @@ export function applyEventChoice(choiceId) {
 
   const talentId = resolved.talentId || choice.talentId;
   if (talentId) {
-    if (!player.talents.includes(talentId)) {
-      player.talents.push(talentId);
-    }
+    player.talents = upgradeTalentList(player.talents, talentId);
     const talent = getTalentById(talentId);
     player.runRewards.push(createRunReward({
       type: 'talent',
@@ -2400,9 +2726,7 @@ export function applyRewardChoice(choiceId) {
       rarity: rewardRarity
     });
   } else if (choice.type === 'talent') {
-    if (!gameState.player.talents.includes(choice.talentId)) {
-      gameState.player.talents.push(choice.talentId);
-    }
+    gameState.player.talents = upgradeTalentList(gameState.player.talents, choice.talentId);
     const talent = getTalentById(choice.talentId);
     const rewardRarity = normalizeRarity(talent?.rarity || choice.rarity || 'common');
     gameState.player.runRewards.push(createRunReward({
@@ -2532,9 +2856,7 @@ export function cashOutRun(pickKey = null) {
       player.permanent.bonusStats[pick.stat] += pick.value;
     }
   } else if (pick.type === 'talent') {
-    if (!player.permanent.talents.includes(pick.talentId)) {
-      player.permanent.talents.push(pick.talentId);
-    }
+    player.permanent.talents = upgradeTalentList(player.permanent.talents, pick.talentId);
   } else if (pick.type === 'relic') {
     if (!player.permanent.relics.includes(pick.relicId)) {
       player.permanent.relics.push(pick.relicId);
@@ -2598,12 +2920,22 @@ export function addHistory(result) {
 }
 
 export function getTalentById(id) {
-  return TALENTS.find(t => t.id === id) || null;
+  if (!id) return null;
+  const { baseId, rank } = parseTalentKey(id);
+  const talent = TALENTS.find(t => t.id === baseId);
+  if (!talent) return null;
+  return {
+    ...talent,
+    baseId,
+    rank,
+    rarity: getTalentRankRarity(rank),
+    name: `${talent.name} ${getTalentRankLabel(rank)}`
+  };
 }
 
 export function getTalentMultiplier(id) {
-  const talent = getTalentById(id);
-  return getRarityMultiplier(talent?.rarity);
+  const { rank } = parseTalentKey(id);
+  return getTalentRankMultiplier(rank);
 }
 
 export function getTalentScaledValue(id, baseValue) {
@@ -2613,9 +2945,9 @@ export function getTalentScaledValue(id, baseValue) {
 export function getTalentDescription(id) {
   const talent = getTalentById(id);
   if (!talent) return '';
-  const mult = getRarityMultiplier(talent.rarity);
+  const mult = getTalentRankMultiplier(talent.rank);
   const pct = value => `${(value * 100).toFixed(1)}%`;
-  switch (id) {
+  switch (talent.baseId) {
     case 'berserk':
       return `Furie sous 35% PV (+${pct(0.25 * mult)} ATK).`;
     case 'tank':
@@ -2644,6 +2976,66 @@ export function getTalentDescription(id) {
       return `Premier coup +${pct(0.35 * mult)} degats.`;
     case 'lucky':
       return `+${pct(0.05 * mult)} CRIT et +${pct(0.05 * mult)} DODGE.`;
+    case 'pierce':
+      return `Ignore ${pct(0.15 * mult)} DEF.`;
+    case 'execution':
+      return `+${pct(0.25 * mult)} degats si cible <30% PV.`;
+    case 'combo':
+      return `+${pct(0.05 * mult)} degats par hit consecutif (max 5).`;
+    case 'bonecrusher':
+      return `${pct(0.2 * mult)} chance de fracture: -${pct(0.2 * mult)} DEF (1 coup).`;
+    case 'assault':
+      return `+${pct(0.2 * mult)} degats sur les 2 premiers coups.`;
+    case 'bleed':
+      return `${pct(0.15 * mult)} chance de saignement (${pct(0.04 * mult)} PV max sur 2 tours).`;
+    case 'lethal_precision':
+      return `+${pct(0.1 * mult)} CRIT si PREC > DODGE adverse.`;
+    case 'carnage':
+      return `+${pct(0.02 * mult)} degats par 10 niveaux.`;
+    case 'momentum':
+      return `Tous les 3 hits: prochain coup +${pct(0.2 * mult)} degats.`;
+    case 'sharpened':
+      return `+${pct(0.1 * mult)} degats si arme rare+.`;
+    case 'opportunist':
+      return `+${pct(0.2 * mult)} degats si l ennemi rate son dernier coup.`;
+    case 'surge':
+      return `Apres une esquive: prochain coup +${pct(0.15 * mult)} degats.`;
+    case 'resilience':
+      return `-${pct(0.15 * mult)} degats recus sous 40% PV.`;
+    case 'parry':
+      return `${pct(0.1 * mult)} chance de reduire un coup de 50%.`;
+    case 'living_armor':
+      return `+${Math.max(1, Math.round(2 * mult))} DEF par coup recu (max 10).`;
+    case 'barrier':
+      return `-${pct(0.25 * mult)} degats sur 2 premiers coups.`;
+    case 'stoic':
+      return `CRIT adverses -${pct(0.3 * mult)} degats.`;
+    case 'second_chance':
+      return `Une fois par combat, survit a 1 PV.`;
+    case 'counter':
+      return `${pct(0.1 * mult)} chance de renvoyer ${pct(0.3 * mult)} degats.`;
+    case 'anchor':
+      return `-${pct(0.1 * mult)} degats recus si plus lent.`;
+    case 'iron_will':
+      return `-${pct(0.1 * mult)} degats recus au-dessus de 80% PV.`;
+    case 'rhythm':
+      return `Tous les 3 coups: +${Math.max(1, Math.round(3 * mult))} SPD (max 3).`;
+    case 'mastery':
+      return `Si meme arme 2 tours: +${pct(0.08 * mult)} PREC.`;
+    case 'instinct':
+      return `Sous 30% PV: +${pct(0.1 * mult)} DODGE.`;
+    case 'anticipation':
+      return `Commence avec +${Math.max(1, Math.round(20 * mult))} init.`;
+    case 'relentless':
+      return `Apres un rate: +${pct(0.08 * mult)} CRIT sur le prochain coup.`;
+    case 'cold_focus':
+      return `Si aucun degat recu pendant 2 tours: +${pct(0.1 * mult)} CRIT.`;
+    case 'arsenal':
+      return `+${pct(0.02 * mult)} degats par arme possedee (max 10%).`;
+    case 'siphon':
+      return `Recupere ${pct(0.08 * mult)} des degats infliges.`;
+    case 'guardian':
+      return `-${pct(0.1 * mult)} degats recus si PV < adversaire.`;
     default:
       return talent.desc || '';
   }
