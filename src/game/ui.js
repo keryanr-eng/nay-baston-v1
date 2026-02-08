@@ -4,6 +4,48 @@ const FX_TIMERS = {
   A: {},
   B: {}
 };
+
+const STAT_LABEL_CLASS = {
+  HP: 'stat-hp',
+  ATK: 'stat-atk',
+  DEF: 'stat-def',
+  SPD: 'stat-spd',
+  CRIT: 'stat-crit',
+  DODGE: 'stat-dodge',
+  PREC: 'stat-prec',
+  DMG: 'stat-dmg'
+};
+
+const STAT_KEY_LABEL = {
+  hp: 'HP',
+  atk: 'ATK',
+  def: 'DEF',
+  spd: 'SPD',
+  crit: 'CRIT',
+  dodge: 'DODGE',
+  precision: 'PREC',
+  dmg: 'DMG'
+};
+
+function statLabelHtml(label) {
+  const cls = STAT_LABEL_CLASS[label];
+  if (!cls) return label;
+  return `<span class="stat-label ${cls}">${label}</span>`;
+}
+
+function statLabelHtmlFromKey(key) {
+  const label = STAT_KEY_LABEL[key] || key.toUpperCase();
+  return statLabelHtml(label);
+}
+
+function decorateStatText(text) {
+  if (!text) return text;
+  return text.replace(/\b(HP|ATK|DEF|SPD|CRIT|DODGE|PREC|DMG)\b/g, match => {
+    const cls = STAT_LABEL_CLASS[match];
+    if (!cls) return match;
+    return `<span class="stat-label ${cls}">${match}</span>`;
+  });
+}
 let shakeTimer = null;
 let zoomTimer = null;
 let ambientCtx = null;
@@ -138,21 +180,20 @@ function spawnFxText(side, text, kind) {
   setTimeout(() => pop.remove(), 900);
 }
 
-function weaponStatsText(weaponInstance) {
-  if (!weaponInstance) return 'Arme de base.';
+function getWeaponStatEntries(weaponInstance) {
+  if (!weaponInstance) return null;
   const weaponId = weaponInstance.id || weaponInstance.weaponId || weaponInstance?.id;
-  if (weaponId === 'fists') return 'Arme de base.';
+  if (weaponId === 'fists') return null;
   const weaponDef = getWeaponById(weaponId);
-  if (!weaponDef) return 'Arme de base.';
+  if (!weaponDef) return null;
   const rarity = weaponInstance.rarity || weaponDef.rarity || 'common';
   const modifiers = getWeaponEffectiveModifiers(weaponDef, rarity, weaponInstance.bonusStats);
   const baseDmg = getWeaponBaseDamage(weaponDef, rarity);
-  const parts = [];
+  const entries = [];
   const order = ['hp', 'atk', 'def', 'spd', 'crit', 'dodge', 'precision'];
   const formatFlat = (key, value) => {
     if (!value) return '';
     const sign = value > 0 ? '+' : '';
-    const label = key === 'precision' ? 'PREC' : key.toUpperCase();
     if (key === 'crit' || key === 'dodge' || key === 'precision') {
       return `${sign}${(value * 100).toFixed(1)} pts`;
     }
@@ -164,27 +205,48 @@ function weaponStatsText(weaponInstance) {
     return `${sign}${(value * 100).toFixed(0)}%`;
   };
   if (baseDmg) {
-    parts.push(`DMG +${baseDmg}`);
+    entries.push({ key: 'dmg', label: 'DMG', flat: `+${baseDmg}`, pct: '' });
   }
   order.forEach(key => {
     const flatValue = modifiers.flat[key] || 0;
     const pctValue = modifiers.pct[key] || 0;
     if (!flatValue && !pctValue) return;
     const label = key === 'precision' ? 'PREC' : key.toUpperCase();
-    const flatText = formatFlat(key, flatValue);
-    const pctText = formatPct(pctValue);
-    if (flatText && pctText) {
-      parts.push(`${label} ${flatText} (${pctText})`);
-      return;
-    }
-    if (flatText) {
-      parts.push(`${label} ${flatText}`);
-      return;
-    }
-    parts.push(`${label} ${pctText}`);
+    entries.push({
+      key,
+      label,
+      flat: formatFlat(key, flatValue),
+      pct: formatPct(pctValue)
+    });
   });
-  if (!parts.length) return 'Arme de base.';
-  return parts.join(' | ');
+  return entries.length ? entries : null;
+}
+
+function weaponStatsText(weaponInstance) {
+  const entries = getWeaponStatEntries(weaponInstance);
+  if (!entries) return 'Arme de base.';
+  return entries.map(entry => {
+    if (entry.flat && entry.pct) return `${entry.label} ${entry.flat} (${entry.pct})`;
+    if (entry.flat) return `${entry.label} ${entry.flat}`;
+    return `${entry.label} ${entry.pct}`;
+  }).join(' | ');
+}
+
+function weaponStatsHtml(weaponInstance) {
+  const entries = getWeaponStatEntries(weaponInstance);
+  if (!entries) return '';
+  const rows = entries.map(entry => {
+    const pct = entry.pct ? `<span class="tip-pct">(${entry.pct})</span>` : '';
+    const labelHtml = entry.key ? statLabelHtmlFromKey(entry.key) : statLabelHtml(entry.label);
+    return `
+      <div class="weapon-tip-row">
+        <span class="tip-label">${labelHtml}</span>
+        <span class="tip-value">${entry.flat || ''}</span>
+        ${pct}
+      </div>
+    `;
+  }).join('');
+  return `<div class="weapon-tip-grid">${rows}</div>`;
 }
 
 function shouldShowRewardTip(tip, label, desc) {
@@ -201,11 +263,11 @@ function formatBonusStats(stats) {
   order.forEach(key => {
     const value = stats[key];
     if (!value) return;
-    const label = key === 'precision' ? 'PREC' : key.toUpperCase();
+    const labelHtml = statLabelHtmlFromKey(key);
     if (key === 'crit' || key === 'dodge' || key === 'precision') {
-      parts.push(`${label} +${(value * 100).toFixed(1)}%`);
+      parts.push(`${labelHtml} +${(value * 100).toFixed(1)}%`);
     } else {
-      parts.push(`${label} +${Math.round(value)}`);
+      parts.push(`${labelHtml} +${Math.round(value)}`);
     }
   });
   return parts.join(' | ');
@@ -218,8 +280,8 @@ function formatBonusPercents(stats) {
   order.forEach(key => {
     const value = stats[key];
     if (!value) return;
-    const label = key === 'precision' ? 'PREC' : key.toUpperCase();
-    parts.push(`${label} +${(value * 100).toFixed(1)}%`);
+    const labelHtml = statLabelHtmlFromKey(key);
+    parts.push(`${labelHtml} +${(value * 100).toFixed(1)}%`);
   });
   return parts.join(' | ');
 }
@@ -485,13 +547,58 @@ export function renderMainScreen() {
     return computePowerScore(merged, combinedTalents);
   });
   const playerPower = Math.round(powerSamples.reduce((sum, value) => sum + value, 0) / powerSamples.length);
-  const talents = ownedTalents.length
-    ? ownedTalents.map(id => {
-        const t = getTalentById(id);
-        const desc = getTalentDescription(id);
-        return `<li><strong>${t ? t.name : id}</strong> <span class="muted">${desc}</span></li>`;
+  const familyOrder = ['assassin', 'berserker', 'bastion', 'sentinel', 'reaper', 'arsenal'];
+  const familyLabels = {
+    assassin: 'Assassin',
+    berserker: 'Berserker',
+    bastion: 'Bastion',
+    sentinel: 'Sentinelle',
+    reaper: 'Faucheur',
+    arsenal: 'Arsenal'
+  };
+
+  const groupedTalents = {};
+  ownedTalents.forEach(id => {
+    const family = getTalentFamilyById(id);
+    const key = family?.id || 'other';
+    if (!groupedTalents[key]) groupedTalents[key] = [];
+    groupedTalents[key].push(id);
+  });
+
+  const renderTalentRows = ids => ids.map(id => {
+    const t = getTalentById(id);
+    const desc = getTalentDescription(id);
+    const family = getTalentFamilyById(id);
+    const badge = family ? getFamilyBadgeHtml(family) : '';
+    return `
+      <li class="talent-row">
+        <div class="talent-main">
+          <strong class="talent-name">${t ? t.name : id}</strong>
+          <span class="muted">${desc}</span>
+        </div>
+        ${badge}
+      </li>
+    `;
+  }).join('');
+
+  const talentGroups = ownedTalents.length
+    ? familyOrder.map(familyId => {
+        const ids = groupedTalents[familyId] || [];
+        if (!ids.length) return '';
+        const label = familyLabels[familyId] || familyId;
+        return `
+          <div class="talent-group option-b" data-family="${familyId}">
+            <div class="talent-group-title">
+              <span class="family-icon" data-family="${familyId}" aria-hidden="true"></span>
+              <span>${label}</span>
+            </div>
+            <ul class="list hide-family-badges">
+              ${renderTalentRows(ids)}
+            </ul>
+          </div>
+        `;
       }).join('')
-    : '<li class="muted">Aucun pour le moment.</li>';
+    : '<div class="muted">Aucun pour le moment.</div>';
 
   const relics = ownedRelics.length
     ? ownedRelics.map(id => {
@@ -508,7 +615,6 @@ export function renderMainScreen() {
         return `<li><strong class="${rarity}">${mod ? mod.name : id}</strong> <span class="muted">${mod?.desc || ''}</span></li>`;
       }).join('')
     : '<li class="muted">Aucun serment.</li>';
-
 
   const familyTotalLine = formatBonusPercents(familySummary.totalBonus);
   const familyTiles = familySummary.families.length
@@ -552,7 +658,7 @@ export function renderMainScreen() {
   const historyItems = player.history.length
     ? player.history.map(item => {
         if (item.type === 'reward') {
-          const label = item.label || 'Bonus';
+          const label = decorateStatText(item.label || 'Bonus');
           const source = item.source ? `${item.source} - ` : '';
           const typeLabel = item.rewardType === 'weapon'
             ? 'arme'
@@ -569,12 +675,12 @@ export function renderMainScreen() {
                 ? '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l5 4 1 6-6 8-6-8 1-6 5-4z"/><path d="M12 7l2 2-2 4-2-4 2-2z"/></svg>'
                 : '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3c2 3 4 4.5 4 7.5 0 3-2 5.5-4 7.5-2-2-4-4.5-4-7.5 0-3 2-4.5 4-7.5z"/><path d="M12 9c1 1.2 1.5 2.1 1.5 3.4 0 1.4-.7 2.5-1.5 3.4-.8-.9-1.5-2-1.5-3.4 0-1.3.5-2.2 1.5-3.4z"/></svg>';
           const rarityClass = item.rarity ? `rarity-text-${normalizeRarity(item.rarity)}` : '';
-          const desc = item.desc ? ` <span class="muted">${item.desc}</span>` : '';
+          const desc = item.desc ? ` <span class="muted">${decorateStatText(item.desc)}</span>` : '';
           return `<li><span class="badge reward">${typeLabel}</span><span class="history-icon icon-${item.rewardType}">${icon}</span> ${source}<span class="history-label ${rarityClass}">${label}</span>${desc}</li>`;
         }
         if (item.type === 'event') {
           const title = item.title || 'Evenement';
-          const summary = item.summary || '';
+          const summary = decorateStatText(item.summary || '');
           const icon = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4h10a3 3 0 0 1 3 3v10H7a3 3 0 0 1-3-3V4h3z"/><path d="M7 4v10a2 2 0 0 0 2 2h11"/><path d="M9 7h6"/><path d="M9 10h6"/></svg>';
           return `<li><span class="badge event">event</span><span class="history-icon icon-event">${icon}</span> ${title} - ${summary}</li>`;
         }
@@ -595,7 +701,7 @@ export function renderMainScreen() {
   const nextEnemyProfile = nextEnemy.profile ? nextEnemy.profile : 'balanced';
   const nextEnemyTalents = Array.isArray(nextEnemy.talents) ? nextEnemy.talents.length : 0;
   const enemyStats = nextEnemy.stats || {};
-  const enemyStatsLine = `HP ${enemyStats.hp ?? '-'} | ATK ${enemyStats.atk ?? '-'} | DEF ${enemyStats.def ?? '-'} | SPD ${enemyStats.spd ?? '-'} | CRIT ${enemyStats.crit ? (enemyStats.crit * 100).toFixed(1) : '0.0'}% | DODGE ${enemyStats.dodge ? (enemyStats.dodge * 100).toFixed(1) : '0.0'}% | PREC ${enemyStats.precision ? (enemyStats.precision * 100).toFixed(1) : '0.0'}%`;
+  const enemyStatsLine = `${statLabelHtml('HP')} ${enemyStats.hp ?? '-'} | ${statLabelHtml('ATK')} ${enemyStats.atk ?? '-'} | ${statLabelHtml('DEF')} ${enemyStats.def ?? '-'} | ${statLabelHtml('SPD')} ${enemyStats.spd ?? '-'} | ${statLabelHtml('CRIT')} ${enemyStats.crit ? (enemyStats.crit * 100).toFixed(1) : '0.0'}% | ${statLabelHtml('DODGE')} ${enemyStats.dodge ? (enemyStats.dodge * 100).toFixed(1) : '0.0'}% | ${statLabelHtml('PREC')} ${enemyStats.precision ? (enemyStats.precision * 100).toFixed(1) : '0.0'}%`;
   const powerScore = computePowerScore(enemyStats, nextEnemy.talents || []);
 
   gameUI.innerHTML = `
@@ -617,13 +723,13 @@ export function renderMainScreen() {
             <div class="muted small">XP ${player.xp} / ${xpMax}</div>
           </div>
           <div class="stats-grid">
-            <div><span>HP</span><strong>${combatProfile.stats.hp}</strong></div>
-            <div><span>ATK</span><strong>${combatProfile.stats.atk}</strong></div>
-            <div><span>DEF</span><strong>${combatProfile.stats.def}</strong></div>
-            <div><span>SPD</span><strong>${combatProfile.stats.spd}</strong></div>
-            <div><span>CRIT</span><strong>${(combatProfile.stats.crit * 100).toFixed(1)}%</strong></div>
-            <div><span>DODGE</span><strong>${(combatProfile.stats.dodge * 100).toFixed(1)}%</strong></div>
-            <div><span>PREC</span><strong>${(combatProfile.stats.precision * 100).toFixed(1)}%</strong></div>
+            <div><span class="stat-label stat-hp">HP</span><strong>${combatProfile.stats.hp}</strong></div>
+            <div><span class="stat-label stat-atk">ATK</span><strong>${combatProfile.stats.atk}</strong></div>
+            <div><span class="stat-label stat-def">DEF</span><strong>${combatProfile.stats.def}</strong></div>
+            <div><span class="stat-label stat-spd">SPD</span><strong>${combatProfile.stats.spd}</strong></div>
+            <div><span class="stat-label stat-crit">CRIT</span><strong>${(combatProfile.stats.crit * 100).toFixed(1)}%</strong></div>
+            <div><span class="stat-label stat-dodge">DODGE</span><strong>${(combatProfile.stats.dodge * 100).toFixed(1)}%</strong></div>
+            <div><span class="stat-label stat-prec">PREC</span><strong>${(combatProfile.stats.precision * 100).toFixed(1)}%</strong></div>
           </div>
           <div class="weapon-line">
             <span>Armes possedees</span>
@@ -633,7 +739,9 @@ export function renderMainScreen() {
                 const label = w.name || 'Poings';
                 const weaponId = w.id || 'fists';
                 const iconHtml = weaponId === 'fists' ? '' : `<span class="weapon-icon" data-weapon="${rarity}" data-weapon-id="${weaponId}"></span>`;
-                return `<span class="weapon-pill rarity-${rarity}" data-tip="${weaponStatsText(w)}">${iconHtml}<span class="weapon-name">${label}</span></span>`;
+                const tipHtml = weaponId === 'fists' ? '' : weaponStatsHtml(w);
+                const tooltip = tipHtml ? `<span class="weapon-tip">${tipHtml}</span>` : '';
+                return `<span class="weapon-pill rarity-${rarity}">${iconHtml}<span class="weapon-name">${label}</span>${tooltip}</span>`;
               }).join(' ')}
             </strong>
             <span class="muted">${ownedWeapons.length ? 'Utilise une arme au hasard en combat.' : 'Aucune arme, utilise les poings.'}</span>
@@ -643,8 +751,9 @@ export function renderMainScreen() {
 
         <section class="card">
           <h3>Talents</h3>
-          <ul class="list">${talents}</ul>
+          <div class="talent-groups">${talentGroups}</div>
         </section>
+
         <section class="card families-card">
           <h3>Familles</h3>
           <div class="family-total">Bonus totaux: ${familyTotalLine || 'Aucun'}</div>
@@ -726,8 +835,9 @@ export function renderMainScreen() {
               ${Object.entries(player.permanent?.bonusStats || {}).filter(([, value]) => value)
                 .map(([key, value]) => {
                   const isPercent = key === 'crit' || key === 'dodge' || key === 'precision';
-                  const label = key === 'precision' ? 'PREC' : key.toUpperCase();
-                  return `<li>${label} +${isPercent ? (value * 100).toFixed(1) + '%' : value}</li>`;
+                  const label = statLabelHtmlFromKey(key);
+                  const val = isPercent ? `${(value * 100).toFixed(1)}%` : `${value}`;
+                  return `<li>${label} +${val}</li>`;
                 }).join('') || '<li class="muted">Aucun bonus</li>'}
             </ul>
           </div>
@@ -1158,6 +1268,8 @@ export function renderBossChest({ rewards = [], onPick, onContinue }) {
               : reward.type === 'relic'
                 ? (relic?.desc || '')
                 : `Bonus permanent: ${reward.label || ''}`.trim();
+          const titleHtml = decorateStatText(title);
+          const descHtml = decorateStatText(desc);
           const tip = reward.type === 'weapon'
             ? weaponStatsText({ id: reward.weaponId, rarity })
             : '';
@@ -1168,8 +1280,8 @@ export function renderBossChest({ rewards = [], onPick, onContinue }) {
           if (familyBadge) metaParts.push(familyBadge);
           return `
             <button class="reward-card rarity-${rarity}" data-reward-key="${reward.key}" data-type="${reward.type}" data-rarity="${rarity}"${tipAttr}>
-              <div class="reward-title">${title}</div>
-              <div class="reward-desc">${desc}</div>
+              <div class="reward-title">${titleHtml}</div>
+              <div class="reward-desc">${descHtml}</div>
               <div class="reward-meta">${metaParts.join('')}</div>
             </button>
           `;
@@ -1248,7 +1360,7 @@ export function renderEventPanel(eventData, onSelect = null, target = null, play
     const nextGold = currentPlayer.gold || 0;
     const title = result?.title || eventData.title || 'Evenement';
     const choiceLabel = result?.choiceLabel ? `<div class="event-result-choice">${result.choiceLabel}</div>` : '';
-    const summary = result?.summary || 'Aucun effet.';
+    const summary = decorateStatText(result?.summary || 'Aucun effet.');
     const continueLabel = result?.continueLabel || 'Continuer';
     const autoContinue = Boolean(result?.autoContinue);
 
@@ -1325,14 +1437,16 @@ export function renderEventPanel(eventData, onSelect = null, target = null, play
           const fullDesc = weapon
             ? `${option.desc || weapon.desc || ''}${tip ? ` | ${tip}` : ''}`.trim()
             : (option.desc || '');
+          const titleHtml = decorateStatText(option.label);
+          const descHtml = decorateStatText(fullDesc);
           const metaParts = [];
           if (cost) metaParts.push(`<span>COUT: ${cost} OR</span>`);
           if (familyBadge) metaParts.push(familyBadge);
           const metaLine = metaParts.length ? `<div class="reward-meta">${metaParts.join('')}</div>` : '';
           return `
             <button class="reward-card event-card rarity-${rarity}${lockedClass}" data-event-choice="${option.id}"${tipAttr}${disabledAttr}>
-              <div class="reward-title">${option.label}</div>
-              <div class="reward-desc">${fullDesc}</div>
+              <div class="reward-title">${titleHtml}</div>
+              <div class="reward-desc">${descHtml}</div>
               ${metaLine}
             </button>
           `;
@@ -1425,12 +1539,14 @@ export function renderLevelUpChoices(levelEntry, onConfirm) {
           const tipAttr = showTip ? ` data-tip="${tip}"` : '';
           const rarity = normalizeRarity(option.rarity);
           const familyBadge = getRewardFamilyBadge(option);
+          const titleHtml = decorateStatText(option.label);
+          const descHtml = decorateStatText(option.desc || '');
           const metaParts = [`<span>${option.type.toUpperCase()}</span>`];
           if (familyBadge) metaParts.push(familyBadge);
           return `
             <button class="reward-card rarity-${rarity}" data-choice="${option.id}"${tipAttr}>
-              <div class="reward-title">${option.label}</div>
-              <div class="reward-desc">${option.desc || ''}</div>
+              <div class="reward-title">${titleHtml}</div>
+              <div class="reward-desc">${descHtml}</div>
               <div class="reward-meta">${metaParts.join('')}</div>
             </button>
           `;

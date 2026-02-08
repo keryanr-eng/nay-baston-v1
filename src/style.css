@@ -16,6 +16,44 @@
   --ember-strong: rgba(255, 140, 90, 0.45);
 }
 
+.stat-label {
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.stat-hp {
+  color: #6fe28c;
+}
+
+.stat-atk {
+  color: #f28c2c;
+}
+
+.stat-def {
+  color: #a9b4c8;
+}
+
+.stat-spd {
+  color: #3fa9f5;
+}
+
+.stat-crit {
+  color: #ff6b6b;
+}
+
+.stat-dodge {
+  color: #38d7b0;
+}
+
+.stat-prec {
+  color: #6b7dff;
+}
+
+.stat-dmg {
+  color: #f2a255;
+}
+
 /* Families */
 .families-card {
   position: relative;
@@ -633,7 +671,7 @@ h2, h3 {
   gap: 0.3rem;
 }
 
-.stats-grid span {
+.stats-grid span:not(.stat-label) {
   font-size: 0.7rem;
   color: var(--muted);
   letter-spacing: 0.12em;
@@ -922,20 +960,21 @@ h2, h3 {
   left: 50%;
   bottom: calc(100% + 8px);
   transform: translateX(-50%);
-  background: rgba(12, 10, 12, 0.95);
-  color: var(--text);
-  padding: 0.4rem 0.6rem;
+  background: linear-gradient(160deg, rgba(12, 10, 12, 0.98), rgba(6, 4, 6, 0.98));
+  color: #f4e7cf;
+  padding: 0.55rem 0.7rem;
   border-radius: 10px;
-  font-size: 0.75rem;
-  max-width: 260px;
-  white-space: normal;
+  font-size: 0.82rem;
+  max-width: 320px;
+  white-space: pre-line;
   text-align: left;
-  line-height: 1.4;
+  line-height: 1.45;
+  column-gap: 14px;
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.15s ease;
   border: 1px solid rgba(214, 176, 107, 0.25);
-  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.35);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.45);
   z-index: 10;
 }
 
@@ -953,9 +992,63 @@ h2, h3 {
   z-index: 10;
 }
 
-.weapon-pill:hover::after,
-.weapon-pill:hover::before {
+.weapon-pill::after,
+.weapon-pill::before {
+  display: none;
+}
+
+.weapon-pill .weapon-tip {
+  position: absolute;
+  left: 0;
+  bottom: calc(100% + 10px);
+  transform: translateX(0);
+  background: linear-gradient(160deg, rgba(12, 10, 12, 0.98), rgba(6, 4, 6, 0.98));
+  color: #f4e7cf;
+  padding: 0.6rem 0.75rem;
+  border-radius: 12px;
+  font-size: 0.82rem;
+  min-width: 200px;
+  max-width: min(320px, 90vw);
+  text-align: left;
+  line-height: 1.4;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease;
+  border: 1px solid rgba(214, 176, 107, 0.25);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.45);
+  z-index: 10;
+}
+
+.weapon-pill:hover .weapon-tip {
   opacity: 1;
+}
+
+.weapon-tip-grid {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.weapon-tip-row {
+  display: grid;
+  grid-template-columns: 64px 1fr auto;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.weapon-tip-row .tip-label {
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: inherit;
+}
+
+.weapon-tip-row .tip-value {
+  font-weight: 600;
+  color: #f9e7c6;
+}
+
+.weapon-tip-row .tip-pct {
+  color: rgba(246, 228, 193, 0.75);
+  font-size: 0.76rem;
 }
 
 button {
@@ -2665,6 +2758,80 @@ input[type="text"] {
   gap: 0.5rem;
   align-items: center;
   flex-wrap: wrap;
+}
+
+.talent-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  padding: 0.25rem 0;
+}
+
+.talent-main {
+  display: grid;
+  gap: 0.15rem;
+}
+
+.talent-name {
+  font-weight: 700;
+}
+
+.talent-groups {
+  display: grid;
+  gap: 0.8rem;
+}
+
+.talent-group {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  padding: 0.6rem 0.8rem;
+  background: rgba(12, 8, 12, 0.45);
+}
+
+.hide-family-badges .family-badge {
+  display: none;
+}
+.talent-group-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 700;
+  color: #f4e4c5;
+  margin-bottom: 0.35rem;
+}
+
+.talent-group-title .family-icon {
+  width: 18px;
+  height: 18px;
+}
+
+.talent-group .list {
+  margin: 0;
+}
+
+.talent-group[data-family="assassin"] {
+  border-color: rgba(80, 170, 255, 0.25);
+}
+
+.talent-group[data-family="berserker"] {
+  border-color: rgba(255, 90, 90, 0.25);
+}
+
+.talent-group[data-family="bastion"] {
+  border-color: rgba(240, 200, 90, 0.25);
+}
+
+.talent-group[data-family="sentinel"] {
+  border-color: rgba(125, 220, 125, 0.25);
+}
+
+.talent-group[data-family="reaper"] {
+  border-color: rgba(170, 120, 255, 0.25);
+}
+
+.talent-group[data-family="arsenal"] {
+  border-color: rgba(255, 150, 60, 0.25);
 }
 
 .family-badge {
