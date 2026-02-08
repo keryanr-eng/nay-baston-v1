@@ -98,61 +98,66 @@ const TALENT_FAMILIES = [
     id: 'assassin',
     name: 'Assassin',
     talents: ['precision', 'focus', 'ninja', 'fast', 'duelist', 'lethal_precision', 'rhythm', 'anticipation', 'instinct'],
+    weaponIds: ['dagger'],
     tiers: [
       { count: 3, bonus: { spd: 0.04, precision: 0.04 } },
       { count: 6, bonus: { crit: 0.08, dodge: 0.06 } },
-      { count: 9, bonus: { spd: 0.1, precision: 0.1, crit: 0.12, dodge: 0.1 } }
+      { count: 10, bonus: { spd: 0.1, precision: 0.1, crit: 0.12, dodge: 0.1 } }
     ]
   },
   {
     id: 'berserker',
     name: 'Berserker',
     talents: ['berserk', 'bloodlust', 'firstblood', 'execution', 'combo', 'momentum', 'assault', 'carnage', 'opportunist'],
+    weaponIds: ['axe'],
     tiers: [
       { count: 3, bonus: { atk: 0.08 } },
       { count: 6, bonus: { atk: 0.16, crit: 0.06 } },
-      { count: 9, bonus: { atk: 0.3, crit: 0.12 } }
+      { count: 10, bonus: { atk: 0.3, crit: 0.12 } }
     ]
   },
   {
     id: 'bastion',
     name: 'Bastion',
     talents: ['tank', 'armor', 'bulwark', 'resilience', 'guardian', 'iron_will', 'anchor'],
+    weaponIds: ['shield'],
     tiers: [
       { count: 2, bonus: { hp: 0.06, def: 0.04 } },
       { count: 5, bonus: { hp: 0.14, def: 0.1 } },
-      { count: 7, bonus: { hp: 0.24, def: 0.16 } }
+      { count: 8, bonus: { hp: 0.24, def: 0.16 } }
     ]
   },
   {
     id: 'sentinel',
     name: 'Sentinelle',
     talents: ['parry', 'living_armor', 'barrier', 'stoic', 'second_chance'],
+    weaponIds: ['spear'],
     tiers: [
-      { count: 1, bonus: { def: 0.03, hp: 0.02 } },
-      { count: 3, bonus: { def: 0.1, hp: 0.06 } },
-      { count: 5, bonus: { def: 0.18, hp: 0.12 } }
+      { count: 2, bonus: { def: 0.03, hp: 0.02 } },
+      { count: 4, bonus: { def: 0.1, hp: 0.06 } },
+      { count: 6, bonus: { def: 0.18, hp: 0.12 } }
     ]
   },
   {
     id: 'reaper',
     name: 'Faucheur',
     talents: ['bleed', 'lifesteal', 'siphon', 'thorns', 'counter', 'lucky', 'cold_focus', 'relentless'],
+    weaponIds: ['gloves'],
     tiers: [
       { count: 3, bonus: { atk: 0.06, hp: 0.04 } },
       { count: 6, bonus: { atk: 0.12, hp: 0.08, crit: 0.04 } },
-      { count: 8, bonus: { atk: 0.2, hp: 0.12, crit: 0.08 } }
+      { count: 9, bonus: { atk: 0.2, hp: 0.12, crit: 0.08 } }
     ]
   },
   {
     id: 'arsenal',
     name: 'Arsenal',
     talents: ['arsenal', 'sharpened', 'pierce', 'bonecrusher', 'mastery'],
-    weaponIds: ['dagger', 'sword', 'axe', 'spear', 'shield', 'gloves'],
+    weaponIds: ['sword'],
     tiers: [
-      { count: 1, bonus: { atk: 0.04, precision: 0.04 } },
-      { count: 3, bonus: { atk: 0.1, precision: 0.08, crit: 0.03 } },
-      { count: 5, bonus: { atk: 0.2, precision: 0.14, crit: 0.08 } }
+      { count: 2, bonus: { atk: 0.04, precision: 0.04 } },
+      { count: 4, bonus: { atk: 0.1, precision: 0.08, crit: 0.03 } },
+      { count: 6, bonus: { atk: 0.2, precision: 0.14, crit: 0.08 } }
     ]
   }
 ];
@@ -165,12 +170,12 @@ const TALENT_FAMILY_MAP = TALENT_FAMILIES.reduce((map, family) => {
 }, {});
 
 const WEAPON_FAMILY_MAP = {
-  dagger: 'arsenal',
-  sword: 'arsenal',
-  axe: 'arsenal',
-  spear: 'arsenal',
-  shield: 'arsenal',
-  gloves: 'arsenal'
+  dagger: 'assassin',
+  axe: 'berserker',
+  shield: 'bastion',
+  spear: 'sentinel',
+  gloves: 'reaper',
+  sword: 'arsenal'
 };
 
 const WEAPONS = [
