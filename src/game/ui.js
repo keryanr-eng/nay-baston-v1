@@ -1,4 +1,4 @@
-import { getPlayerState, getPlayerCombatProfile, getSettings, updateSettings, getTalentById, getTalentDescription, getWeaponById, getWeaponEffectiveModifiers, getWeaponBaseDamage, xpToNext, getPendingRewards, getPendingEvent, getOwnedWeapons, getOwnedTalents, getOwnedRelics, getRunModifiers, getRelicById, getModifierById, getNextEnemyPreview, getDefaultWeapon, computeBaseStats, applyWeaponStats, applyTalentPassives, applyRelicPassives, applyRunModifiers, applySynergyPassives, getOwnedBonusStats, getOwnedBonusPercents, applyEventChoice, getTalentFamilySummary } from './player.js';
+import { getPlayerState, getPlayerCombatProfile, getSettings, updateSettings, getTalentById, getTalentDescription, getWeaponById, getWeaponEffectiveModifiers, getWeaponBaseDamage, xpToNext, getPendingRewards, getPendingEvent, getOwnedWeapons, getOwnedTalents, getOwnedRelics, getRunModifiers, getRelicById, getModifierById, getNextEnemyPreview, getDefaultWeapon, computeBaseStats, applyWeaponStats, applyTalentPassives, applyRelicPassives, applyRunModifiers, applySynergyPassives, getOwnedBonusStats, getOwnedBonusPercents, applyEventChoice, getTalentFamilySummary, getTalentFamilyById, getWeaponFamilyById } from './player.js';
 
 const FX_TIMERS = {
   A: {},
@@ -222,6 +222,22 @@ function formatBonusPercents(stats) {
     parts.push(`${label} +${(value * 100).toFixed(1)}%`);
   });
   return parts.join(' | ');
+}
+
+function getFamilyBadgeHtml(family) {
+  if (!family) return '';
+  return `<span class="family-badge" data-family="${family.id}">${family.name}</span>`;
+}
+
+function getRewardFamilyBadge(reward) {
+  if (!reward) return '';
+  const weaponId = reward.weaponId;
+  const talentId = reward.talentId;
+  if (weaponId) return getFamilyBadgeHtml(getWeaponFamilyById(weaponId));
+  if (talentId) return getFamilyBadgeHtml(getTalentFamilyById(talentId));
+  if (reward.type === 'weapon') return getFamilyBadgeHtml(getWeaponFamilyById(reward.weaponId));
+  if (reward.type === 'talent') return getFamilyBadgeHtml(getTalentFamilyById(reward.talentId));
+  return '';
 }
 
 function rewardKeyFrom(reward) {
@@ -454,7 +470,7 @@ export function renderMainScreen() {
   });
   const ownedTalents = getOwnedTalents();
   const combinedTalents = ownedTalents;
-  const familySummary = getTalentFamilySummary(combinedTalents);
+  const familySummary = getTalentFamilySummary(combinedTalents, ownedWeapons);
   const ownedRelics = getOwnedRelics();
   const runModifiers = getRunModifiers();
   const combinedBonus = getOwnedBonusStats();
@@ -1147,11 +1163,14 @@ export function renderBossChest({ rewards = [], onPick, onContinue }) {
             : '';
           const showTip = shouldShowRewardTip(tip, title, desc);
           const tipAttr = showTip ? ` data-tip="${tip}"` : '';
+          const familyBadge = getRewardFamilyBadge(reward);
+          const metaParts = [`<span>${typeLabel}</span>`];
+          if (familyBadge) metaParts.push(familyBadge);
           return `
             <button class="reward-card rarity-${rarity}" data-reward-key="${reward.key}" data-type="${reward.type}" data-rarity="${rarity}"${tipAttr}>
               <div class="reward-title">${title}</div>
               <div class="reward-desc">${desc}</div>
-              <div class="reward-meta">${typeLabel}</div>
+              <div class="reward-meta">${metaParts.join('')}</div>
             </button>
           `;
         }).join('')}
@@ -1302,14 +1321,19 @@ export function renderEventPanel(eventData, onSelect = null, target = null, play
           const canAfford = cost ? gold >= cost : true;
           const disabledAttr = canAfford ? '' : ' disabled';
           const lockedClass = canAfford ? '' : ' locked';
+          const familyBadge = getRewardFamilyBadge(option);
           const fullDesc = weapon
             ? `${option.desc || weapon.desc || ''}${tip ? ` | ${tip}` : ''}`.trim()
             : (option.desc || '');
+          const metaParts = [];
+          if (cost) metaParts.push(`<span>COUT: ${cost} OR</span>`);
+          if (familyBadge) metaParts.push(familyBadge);
+          const metaLine = metaParts.length ? `<div class="reward-meta">${metaParts.join('')}</div>` : '';
           return `
             <button class="reward-card event-card rarity-${rarity}${lockedClass}" data-event-choice="${option.id}"${tipAttr}${disabledAttr}>
               <div class="reward-title">${option.label}</div>
               <div class="reward-desc">${fullDesc}</div>
-              ${cost ? `<div class="reward-meta">COUT: ${cost} OR</div>` : ''}
+              ${metaLine}
             </button>
           `;
         }).join('')}
@@ -1400,11 +1424,14 @@ export function renderLevelUpChoices(levelEntry, onConfirm) {
           const showTip = shouldShowRewardTip(tip, option.label, option.desc);
           const tipAttr = showTip ? ` data-tip="${tip}"` : '';
           const rarity = normalizeRarity(option.rarity);
+          const familyBadge = getRewardFamilyBadge(option);
+          const metaParts = [`<span>${option.type.toUpperCase()}</span>`];
+          if (familyBadge) metaParts.push(familyBadge);
           return `
             <button class="reward-card rarity-${rarity}" data-choice="${option.id}"${tipAttr}>
               <div class="reward-title">${option.label}</div>
               <div class="reward-desc">${option.desc || ''}</div>
-              <div class="reward-meta">${option.type.toUpperCase()}</div>
+              <div class="reward-meta">${metaParts.join('')}</div>
             </button>
           `;
         }).join('')}

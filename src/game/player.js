@@ -148,6 +148,7 @@ const TALENT_FAMILIES = [
     id: 'arsenal',
     name: 'Arsenal',
     talents: ['arsenal', 'sharpened', 'pierce', 'bonecrusher', 'mastery'],
+    weaponIds: ['dagger', 'sword', 'axe', 'spear', 'shield', 'gloves'],
     tiers: [
       { count: 1, bonus: { atk: 0.04, precision: 0.04 } },
       { count: 3, bonus: { atk: 0.1, precision: 0.08, crit: 0.03 } },
@@ -162,6 +163,15 @@ const TALENT_FAMILY_MAP = TALENT_FAMILIES.reduce((map, family) => {
   });
   return map;
 }, {});
+
+const WEAPON_FAMILY_MAP = {
+  dagger: 'arsenal',
+  sword: 'arsenal',
+  axe: 'arsenal',
+  spear: 'arsenal',
+  shield: 'arsenal',
+  gloves: 'arsenal'
+};
 
 const WEAPONS = [
   {
@@ -329,13 +339,22 @@ function getTalentFamilyId(baseId) {
   return TALENT_FAMILY_MAP[baseId] || null;
 }
 
+function getWeaponFamilyId(weaponId) {
+  return WEAPON_FAMILY_MAP[weaponId] || null;
+}
+
 export function getTalentFamilyById(talentId) {
   const { baseId } = parseTalentKey(talentId);
   const familyId = getTalentFamilyId(baseId);
   return TALENT_FAMILIES.find(family => family.id === familyId) || null;
 }
 
-function computeFamilySynergies(talentIds) {
+export function getWeaponFamilyById(weaponId) {
+  const familyId = getWeaponFamilyId(weaponId);
+  return TALENT_FAMILIES.find(family => family.id === familyId) || null;
+}
+
+function computeFamilySynergies(talentIds, weaponEntries = []) {
   const counts = {};
   const seen = new Set();
   (talentIds || []).forEach(id => {
@@ -347,10 +366,22 @@ function computeFamilySynergies(talentIds) {
     counts[familyId] = (counts[familyId] || 0) + 1;
   });
 
+  const weaponCounts = {};
+  const seenWeapons = new Set();
+  (weaponEntries || []).forEach(entry => {
+    const weaponId = typeof entry === 'string' ? entry : entry?.id;
+    if (!weaponId || weaponId === DEFAULT_WEAPON.id || seenWeapons.has(weaponId)) return;
+    seenWeapons.add(weaponId);
+    const familyId = getWeaponFamilyId(weaponId);
+    if (!familyId) return;
+    weaponCounts[familyId] = (weaponCounts[familyId] || 0) + 1;
+  });
+
   const totalBonus = { ...EMPTY_BONUS_PERCENTS };
   const families = TALENT_FAMILIES.map(family => {
-    const maxCount = family.maxCount || family.talents.length;
-    const count = counts[family.id] || 0;
+    const weaponSlots = Array.isArray(family.weaponIds) ? family.weaponIds.length : 0;
+    const maxCount = family.maxCount || (family.talents.length + weaponSlots);
+    const count = (counts[family.id] || 0) + (weaponCounts[family.id] || 0);
     const activeTiers = family.tiers.filter(tier => count >= tier.count);
     const nextTier = family.tiers.find(tier => count < tier.count) || null;
     const bonus = { ...EMPTY_BONUS_PERCENTS };
@@ -364,6 +395,8 @@ function computeFamilySynergies(talentIds) {
       ...family,
       maxCount,
       count,
+      talentCount: counts[family.id] || 0,
+      weaponCount: weaponCounts[family.id] || 0,
       activeTiers,
       nextTier,
       bonus
@@ -373,12 +406,12 @@ function computeFamilySynergies(talentIds) {
   return { families, totalBonus };
 }
 
-export function getTalentFamilySummary(talentIds = []) {
-  return computeFamilySynergies(talentIds);
+export function getTalentFamilySummary(talentIds = [], weaponEntries = []) {
+  return computeFamilySynergies(talentIds, weaponEntries);
 }
 
-export function applyFamilyPassives(stats, talentIds = []) {
-  const summary = computeFamilySynergies(talentIds);
+export function applyFamilyPassives(stats, talentIds = [], weaponEntries = []) {
+  const summary = computeFamilySynergies(talentIds, weaponEntries);
   const merged = { ...stats };
   Object.keys(summary.totalBonus).forEach(key => {
     const value = summary.totalBonus[key];
@@ -1091,11 +1124,11 @@ function computeMaxPotentialDodge(player) {
   const relics = getCombinedRelics(player);
   const modifiers = getRunModifiersList(player);
   const talents = getCombinedTalents(player);
+  const weaponList = getCombinedWeapons(player);
   let withTalents = applyTalentPassives(baseStats, talents);
   withTalents = applySynergyPassives(withTalents, talents);
-  withTalents = applyFamilyPassives(withTalents, talents);
+  withTalents = applyFamilyPassives(withTalents, talents, weaponList);
   withTalents = applyRelicPassives(withTalents, relics);
-  const weaponList = getCombinedWeapons(player);
   const list = weaponList.length ? weaponList : [{ id: DEFAULT_WEAPON.id, rarity: DEFAULT_WEAPON.rarity }];
   return Math.max(...list.map(weapon => {
     let merged = applyWeaponStats(withTalents, weapon);
@@ -1140,11 +1173,12 @@ export function getPlayerCombatProfile(weaponOverride = null) {
   const talents = getCombinedTalents(player);
   const relics = getCombinedRelics(player);
   const modifiers = getRunModifiersList(player);
+  const familyWeapons = getCombinedWeapons(player);
   let merged = applyWeaponStats(base, weaponInstance);
   merged = applyRelicPassives(merged, relics);
   merged = applyTalentPassives(merged, talents);
   merged = applySynergyPassives(merged, talents);
-  merged = applyFamilyPassives(merged, talents);
+  merged = applyFamilyPassives(merged, talents, familyWeapons);
   merged = applyRunModifiers(merged, modifiers);
   merged = applyPercentBonuses(merged, bonusPercents);
   return {
