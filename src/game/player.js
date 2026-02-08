@@ -1734,6 +1734,39 @@ function createRunReward(data) {
   return reward;
 }
 
+function normalizeRunRewardRarities(player, rewards) {
+  const list = Array.isArray(rewards) ? rewards : [];
+  if (!list.length) return [];
+
+  const weaponBuckets = {};
+  (player?.weapons || []).forEach(entry => {
+    if (!entry?.id || entry.id === DEFAULT_WEAPON.id) return;
+    const rarity = normalizeRarity(entry.rarity || 'common');
+    if (!weaponBuckets[entry.id]) weaponBuckets[entry.id] = [];
+    weaponBuckets[entry.id].push(rarity);
+  });
+
+  return list.map(reward => {
+    if (!reward) return reward;
+    const normalized = { ...reward };
+    if (normalized.type === 'weapon') {
+      const bucket = weaponBuckets[normalized.weaponId] || [];
+      const nextRarity = bucket.length ? bucket.shift() : normalizeRarity(normalized.rarity || 'common');
+      normalized.rarity = nextRarity;
+    } else if (normalized.type === 'talent') {
+      const talent = getTalentById(normalized.talentId);
+      normalized.rarity = normalizeRarity(talent?.rarity || normalized.rarity || 'common');
+    } else if (normalized.type === 'relic') {
+      const relic = getRelicById(normalized.relicId);
+      normalized.rarity = normalizeRarity(relic?.rarity || normalized.rarity || 'common');
+    } else if (normalized.type === 'stat') {
+      normalized.rarity = normalizeRarity(normalized.rarity || 'common');
+    }
+    normalized.key = buildRewardKey(normalized);
+    return normalized;
+  });
+}
+
 function scaleEventValue(stat, base, level, multiplier = 1) {
   const tier = Math.floor((level - 1) / 5);
   const scale = 1 + tier * 0.15;
@@ -2638,7 +2671,7 @@ export function applyEventChoice(choiceId) {
       type: 'talent',
       talentId,
       label: talent ? talent.name : talentId,
-      rarity: normalizeRarity(talent?.rarity || resolved.rarity || choice.rarity || 'common')
+      rarity: normalizeRarity(resolved.rarity || choice.rarity || talent?.rarity || 'common')
     }));
   }
 
@@ -2652,7 +2685,7 @@ export function applyEventChoice(choiceId) {
       type: 'weapon',
       weaponId,
       label: weapon ? weapon.name : weaponId,
-      rarity: normalizeRarity(weapon?.rarity || resolved.rarity || choice.rarity || weaponRarity)
+      rarity: weaponRarity
     }));
   }
 
@@ -2666,7 +2699,7 @@ export function applyEventChoice(choiceId) {
       type: 'relic',
       relicId,
       label: relic ? relic.name : relicId,
-      rarity: normalizeRarity(relic?.rarity || resolved.rarity || choice.rarity || 'common')
+      rarity: normalizeRarity(resolved.rarity || choice.rarity || relic?.rarity || 'common')
     }));
   }
 
@@ -2723,7 +2756,8 @@ export function getPendingRewards() {
 
 export function getRunRewards() {
   ensureState();
-  return JSON.parse(JSON.stringify(gameState.player.runRewards || []));
+  const normalized = normalizeRunRewardRarities(gameState.player, gameState.player.runRewards || []);
+  return JSON.parse(JSON.stringify(normalized));
 }
 
 export function applyRewardChoice(choiceId) {
@@ -2763,7 +2797,7 @@ export function applyRewardChoice(choiceId) {
   } else if (choice.type === 'talent') {
     gameState.player.talents = upgradeTalentList(gameState.player.talents, choice.talentId);
     const talent = getTalentById(choice.talentId);
-    const rewardRarity = normalizeRarity(talent?.rarity || choice.rarity || 'common');
+    const rewardRarity = normalizeRarity(choice.rarity || talent?.rarity || 'common');
     gameState.player.runRewards.push(createRunReward({
       type: 'talent',
       talentId: choice.talentId,
@@ -2782,7 +2816,7 @@ export function applyRewardChoice(choiceId) {
     gameState.player.weapons.push({ id: choice.weaponId, rarity: weaponRarity });
     gameState.player.weapon = choice.weaponId;
     const weapon = getWeaponById(choice.weaponId);
-    const rewardRarity = normalizeRarity(weapon?.rarity || choice.rarity || weaponRarity);
+    const rewardRarity = weaponRarity;
     gameState.player.runRewards.push(createRunReward({
       type: 'weapon',
       weaponId: choice.weaponId,
@@ -2801,7 +2835,7 @@ export function applyRewardChoice(choiceId) {
       gameState.player.relics.push(choice.relicId);
     }
     const relic = getRelicById(choice.relicId);
-    const rewardRarity = normalizeRarity(relic?.rarity || choice.rarity || 'common');
+    const rewardRarity = normalizeRarity(choice.rarity || relic?.rarity || 'common');
     gameState.player.runRewards.push(createRunReward({
       type: 'relic',
       relicId: choice.relicId,
@@ -2872,7 +2906,8 @@ export function cashOutRun(pickKey = null) {
     return null;
   }
 
-  const normalized = rewards.map(reward => (reward.key ? reward : { ...reward, key: buildRewardKey(reward) }));
+  const normalized = normalizeRunRewardRarities(player, rewards);
+  player.runRewards = normalized;
   let pick = null;
   if (pickKey !== null && pickKey !== undefined) {
     if (typeof pickKey === 'number') {
